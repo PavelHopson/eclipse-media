@@ -1,7 +1,21 @@
 import { useState } from 'react';
-import { DownloadItem, useDownloads } from '../store/downloads';
+import { AudioFormat, AudioQuality, DownloadItem, useDownloads } from '../store/downloads';
 import { fetchInfo, startDownload, subscribeProgress, getFileUrl, formatDuration } from '../api/media';
 import { TranscriptModal } from './TranscriptModal';
+
+const AUDIO_FORMATS: { value: AudioFormat; label: string; lossless?: boolean }[] = [
+  { value: 'mp3',  label: 'MP3' },
+  { value: 'flac', label: 'FLAC', lossless: true },
+  { value: 'opus', label: 'Opus' },
+  { value: 'm4a',  label: 'M4A' },
+];
+
+const AUDIO_QUALITIES: { value: AudioQuality; label: string }[] = [
+  { value: 'best', label: 'Лучшее' },
+  { value: '320',  label: '320 kbps' },
+  { value: '192',  label: '192 kbps' },
+  { value: '128',  label: '128 kbps' },
+];
 
 interface Props {
   item: DownloadItem;
@@ -35,6 +49,8 @@ export function VideoCard({ item }: Props) {
         format: item.format,
         format_id: item.format === 'video' ? (item.formatId ?? undefined) : undefined,
         title: item.info.title,
+        audio_format: item.format === 'audio' ? item.audioFormat : undefined,
+        audio_quality: item.format === 'audio' ? item.audioQuality : undefined,
       });
       store.setJobId(item.id, jobId);
 
@@ -127,7 +143,7 @@ export function VideoCard({ item }: Props) {
         <div
           className="px-4 pb-4 flex flex-wrap items-center gap-3"
         >
-          {/* Формат */}
+          {/* Формат: Video / Audio */}
           <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
             {(['video', 'audio'] as const).map((fmt) => (
               <button
@@ -140,12 +156,61 @@ export function VideoCard({ item }: Props) {
                   color: item.format === fmt ? '#fff' : 'var(--text-dim)',
                 }}
               >
-                {fmt === 'video' ? '🎬 MP4' : '🎵 MP3'}
+                {fmt === 'video' ? '🎬 Видео' : '🎵 Аудио'}
               </button>
             ))}
           </div>
 
-          {/* Качество (только для video) */}
+          {/* Аудио-формат (только для audio) */}
+          {item.format === 'audio' && (
+            <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              {AUDIO_FORMATS.map((af) => (
+                <button
+                  key={af.value}
+                  onClick={() => store.setAudioFormat(item.id, af.value)}
+                  disabled={item.status === 'downloading' || item.status === 'done'}
+                  className="px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+                  style={{
+                    background: item.audioFormat === af.value ? 'var(--surface2)' : 'transparent',
+                    color: item.audioFormat === af.value ? 'var(--text)' : 'var(--text-dim)',
+                    borderLeft: af.value !== 'mp3' ? '1px solid var(--border)' : undefined,
+                  }}
+                  title={af.lossless ? 'Lossless — без потерь' : undefined}
+                >
+                  {af.label}
+                  {af.lossless && (
+                    <span
+                      className="ml-1 text-xs"
+                      style={{ color: 'var(--success)', fontSize: '9px' }}
+                    >
+                      ✦
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Качество аудио — только для форматов с потерями */}
+          {item.format === 'audio' && !['flac', 'wav'].includes(item.audioFormat) && (
+            <select
+              value={item.audioQuality}
+              onChange={(e) => store.setAudioQuality(item.id, e.target.value as AudioQuality)}
+              disabled={item.status === 'downloading' || item.status === 'done'}
+              className="px-2.5 py-1.5 text-xs rounded-lg outline-none disabled:opacity-50"
+              style={{
+                background: 'var(--surface2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              {AUDIO_QUALITIES.map((q) => (
+                <option key={q.value} value={q.value}>{q.label}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Качество видео */}
           {item.format === 'video' && item.info.formats.length > 0 && (
             <select
               value={item.formatId ?? ''}

@@ -10,6 +10,9 @@ export type DownloadStatus =
   | 'done'
   | 'error';
 
+export type AudioFormat = 'mp3' | 'flac' | 'opus' | 'm4a' | 'wav';
+export type AudioQuality = 'best' | '320' | '192' | '128';
+
 export interface DownloadItem {
   id: string;            // локальный uuid
   url: string;
@@ -17,6 +20,8 @@ export interface DownloadItem {
   status: DownloadStatus;
   format: 'video' | 'audio';
   formatId: string | null;
+  audioFormat: AudioFormat;
+  audioQuality: AudioQuality;
   jobId: string | null;
   progress: number;
   speed: string;
@@ -44,6 +49,8 @@ interface DownloadsState {
   setStatus: (id: string, status: DownloadStatus, error?: string) => void;
   setFormat: (id: string, format: 'video' | 'audio') => void;
   setFormatId: (id: string, formatId: string | null) => void;
+  setAudioFormat: (id: string, audioFormat: AudioFormat) => void;
+  setAudioQuality: (id: string, audioQuality: AudioQuality) => void;
   setJobId: (id: string, jobId: string) => void;
   setProgress: (id: string, percent: number, speed: string, eta: string) => void;
   setDone: (id: string, filename: string) => void;
@@ -73,6 +80,8 @@ export const useDownloads = create<DownloadsState>()(
               status: 'idle',
               format: 'video',
               formatId: null,
+              audioFormat: 'mp3',
+              audioQuality: 'best',
               jobId: null,
               progress: 0,
               speed: '',
@@ -113,6 +122,16 @@ export const useDownloads = create<DownloadsState>()(
       setFormatId: (id, formatId) =>
         set((s) => ({
           items: s.items.map((i) => (i.id === id ? { ...i, formatId } : i)),
+        })),
+
+      setAudioFormat: (id, audioFormat) =>
+        set((s) => ({
+          items: s.items.map((i) => (i.id === id ? { ...i, audioFormat } : i)),
+        })),
+
+      setAudioQuality: (id, audioQuality) =>
+        set((s) => ({
+          items: s.items.map((i) => (i.id === id ? { ...i, audioQuality } : i)),
         })),
 
       setJobId: (id, jobId) =>

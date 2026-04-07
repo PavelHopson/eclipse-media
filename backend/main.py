@@ -76,9 +76,11 @@ class InfoRequest(BaseModel):
 
 class DownloadRequest(BaseModel):
     url: str
-    format: str = "video"   # "video" | "audio"
+    format: str = "video"        # "video" | "audio"
     format_id: str | None = None
     title: str = ""
+    audio_format: str = "mp3"    # "mp3" | "flac" | "opus" | "m4a" | "wav"
+    audio_quality: str = "best"  # "best" | "320" | "192" | "128"
 
 class TranscriptRequest(BaseModel):
     url: str
@@ -251,7 +253,8 @@ def start_download(req: DownloadRequest):
 
     thread = threading.Thread(
         target=_run_download,
-        args=(job_id, url, req.format, req.format_id, req.title),
+        args=(job_id, url, req.format, req.format_id, req.title,
+              req.audio_format, req.audio_quality),
         daemon=True,
     )
     thread.start()
@@ -259,14 +262,35 @@ def start_download(req: DownloadRequest):
     return {"ok": True, "data": {"job_id": job_id}}
 
 
-def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title: str):
+AUDIO_FORMAT_EXT = {
+    "mp3": ".mp3",
+    "flac": ".flac",
+    "opus": ".opus",
+    "m4a": ".m4a",
+    "wav": ".wav",
+}
+
+def _build_audio_quality_flags(audio_fmt: str, quality: str) -> list[str]:
+    """
+    Возвращает флаги yt-dlp для управления качеством аудио.
+    FLAC и WAV — lossless, качество не применяется.
+    """
+    if audio_fmt in ("flac", "wav") or quality == "best":
+        return ["--audio-quality", "0"]
+    return ["--audio-quality", f"{quality}K"]
+
+
+def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title: str,
+                  audio_fmt: str = "mp3", audio_quality: str = "best"):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
     cmd = ["yt-dlp", "--no-playlist", "--no-warnings", "-o", out_template]
 
     if fmt == "audio":
-        cmd += ["-x", "--audio-format", "mp3"]
+        safe_fmt = audio_fmt if audio_fmt in AUDIO_FORMAT_EXT else "mp3"
+        cmd += ["-x", "--audio-format", safe_fmt]
+        cmd += _build_audio_quality_flags(safe_fmt, audio_quality)
     elif format_id:
         cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
     else:
@@ -315,7 +339,8 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
 
     # Выбираем нужный формат
     if fmt == "audio":
-        chosen = next((f for f in files if f.endswith(".mp3")), files[0])
+        target_ext = AUDIO_FORMAT_EXT.get(audio_fmt, ".mp3")
+        chosen = next((f for f in files if f.endswith(target_ext)), files[0])
     else:
         chosen = next((f for f in files if f.endswith(".mp4")), files[0])
 

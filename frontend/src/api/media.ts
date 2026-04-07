@@ -65,6 +65,8 @@ export async function startDownload(params: {
   format: 'video' | 'audio';
   format_id?: string;
   title: string;
+  audio_format?: string;
+  audio_quality?: string;
 }): Promise<string> {
   const res = await apiFetch<{ ok: boolean; data: { job_id: string } }>('/download', {
     method: 'POST',
