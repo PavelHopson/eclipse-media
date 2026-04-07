@@ -1,0 +1,78 @@
+# ⚡ Eclipse Media
+
+> Self-hosted медиа-загрузчик | React 19 + TypeScript + FastAPI + yt-dlp
+
+Скачивай видео и аудио с YouTube, TikTok, Instagram, Twitter и ещё 1000+ сайтов — локально, без рекламы, бесплатно.
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+## Возможности
+
+- Скачивание MP4 (с выбором качества) и MP3
+- Реальный прогресс через Server-Sent Events
+- Массовая загрузка — несколько ссылок одновременно
+- Авто-дедупликация URL
+- История загрузок (localStorage)
+- Авто-удаление файлов через 1 час (TTL)
+- Превью: thumbnail, название, длительность, автор
+
+## Быстрый старт
+
+### Docker (рекомендуется)
+
+```bash
+git clone https://github.com/PavelHopson/eclipse-media.git
+cd eclipse-media
+docker compose up --build
+```
+
+Открой **http://localhost:5173**
+
+### Локально
+
+**Backend:**
+```bash
+cd backend
+pip install -r requirements.txt
+# Установи ffmpeg: brew install ffmpeg / apt install ffmpeg
+uvicorn main:app --reload --port 8000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Стек
+
+| Часть | Технологии |
+|-------|-----------|
+| Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 · Zustand |
+| Backend | Python · FastAPI · yt-dlp · Server-Sent Events |
+| Инфра | Docker · ffmpeg |
+
+## Улучшения над оригинальным Reclip
+
+| Reclip | Eclipse Media |
+|--------|--------------|
+| Flask | FastAPI |
+| Polling статуса | SSE (реальный прогресс) |
+| Файлы не удаляются | TTL 1 час + фоновая очистка |
+| Один URL за раз | Массовая загрузка |
+| Нет истории | История в localStorage |
+| Vanilla JS | React 19 + TypeScript + Zustand |
+
+## Лицензия
+
+[MIT](LICENSE)
+
+---
+
+<div align="center">
+<sub>Сделано в Eclipse Forge</sub>
+</div>
