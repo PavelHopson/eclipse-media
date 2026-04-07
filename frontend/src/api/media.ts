@@ -107,6 +107,31 @@ export async function deleteJob(jobId: string): Promise<void> {
   await apiFetch(`/job/${jobId}`, { method: 'DELETE' });
 }
 
+export interface TranscriptSegment {
+  start: string;
+  end: string;
+  text: string;
+}
+
+export interface TranscriptResult {
+  title: string;
+  uploader: string;
+  duration: number | null;
+  language: string;
+  auto_generated: boolean;
+  segments_count: number;
+  text: string;
+  segments: TranscriptSegment[];
+}
+
+export async function fetchTranscript(url: string, lang = 'auto'): Promise<TranscriptResult> {
+  const res = await apiFetch<{ ok: boolean; data: TranscriptResult }>('/transcript', {
+    method: 'POST',
+    body: JSON.stringify({ url, lang }),
+  });
+  return res.data;
+}
+
 export function formatDuration(seconds: number | null): string {
   if (!seconds) return '';
   const h = Math.floor(seconds / 3600);

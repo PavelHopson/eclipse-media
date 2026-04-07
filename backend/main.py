@@ -80,8 +80,66 @@ class DownloadRequest(BaseModel):
     format_id: str | None = None
     title: str = ""
 
+class TranscriptRequest(BaseModel):
+    url: str
+    lang: str = "auto"  # "auto" | код языка ISO 639-1 (en, ru, es, ...)
+
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def parse_srt(content: str) -> list[dict]:
+    """
+    Парсит SRT-субтитры в список сегментов.
+    Убирает: порядковые номера, теги <c>, <font>, HTML-энтити.
+    Возвращает [{ "start": "00:00:01,000", "end": "00:00:03,000", "text": "..." }]
+    """
+    tag_re = re.compile(r'<[^>]+>')
+    entity_re = re.compile(r'&[a-z]+;|&#\d+;')
+    ts_re = re.compile(
+        r'(\d{2}:\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,\.]\d{3})'
+    )
+
+    segments = []
+    current: dict | None = None
+
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+
+        if not line:
+            if current and current.get("text"):
+                segments.append(current)
+            current = None
+            continue
+
+        m = ts_re.match(line)
+        if m:
+            current = {"start": m.group(1), "end": m.group(2), "text": ""}
+            continue
+
+        if current is not None:
+            clean = tag_re.sub("", line)
+            clean = entity_re.sub(" ", clean).strip()
+            if clean and not clean.isdigit():  # пропускаем порядковые номера
+                current["text"] = (current["text"] + " " + clean).strip()
+        # строки без текущего блока — порядковые номера перед timestamp, пропускаем
+
+    if current and current.get("text"):
+        segments.append(current)
+
+    return segments
+
+
+def srt_to_plain_text(segments: list[dict]) -> str:
+    """Объединяет сегменты в читаемый текст, убирая дубли соседних строк."""
+    lines = []
+    prev = ""
+    for seg in segments:
+        text = seg["text"]
+        if text and text != prev:
+            lines.append(text)
+            prev = text
+    return " ".join(lines)
+
 
 def sanitize_filename(title: str, ext: str) -> str:
     if not title:
@@ -335,6 +393,123 @@ def get_file(job_id: str):
         filename=job["filename"],
         media_type="application/octet-stream",
     )
+
+
+@app.post("/api/transcript")
+def get_transcript(req: TranscriptRequest):
+    """
+    Извлекает субтитры/транскрипт из видео через yt-dlp.
+
+    Логика:
+    1. Пробуем ручные субтитры (--write-subs) на запрошенном языке
+    2. Если не найдено — авто-субтитры (--write-auto-subs)
+    3. Если lang="auto" — берём первый доступный язык (приоритет: en, ru, затем любой)
+    4. Парсим SRT в чистый текст + сегменты с временными метками
+    """
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(400, "URL не указан")
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_template = os.path.join(tmpdir, "sub")
+
+        # Шаг 1: получаем метаданные + список доступных субтитров
+        info_cmd = ["yt-dlp", "--no-playlist", "-j", "--no-warnings", url]
+        try:
+            info_result = subprocess.run(info_cmd, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            raise HTTPException(408, "Превышено время ожидания (60s)")
+        except FileNotFoundError:
+            raise HTTPException(500, "yt-dlp не установлен")
+
+        if info_result.returncode != 0:
+            err = info_result.stderr.strip().split("\n")[-1] if info_result.stderr.strip() else "Ошибка"
+            raise HTTPException(400, err)
+
+        try:
+            info = json.loads(info_result.stdout)
+        except json.JSONDecodeError:
+            raise HTTPException(500, "Не удалось разобрать ответ yt-dlp")
+
+        # Определяем язык
+        manual_subs: dict = info.get("subtitles", {})
+        auto_subs: dict = info.get("automatic_captions", {})
+
+        PRIORITY = ["en", "ru", "uk", "de", "fr", "es", "zh", "ja", "ko", "pt", "it", "ar"]
+
+        def pick_lang(subs: dict, requested: str) -> str | None:
+            if not subs:
+                return None
+            if requested != "auto" and requested in subs:
+                return requested
+            # авто-выбор: сначала приоритетные языки
+            for lang in PRIORITY:
+                if lang in subs:
+                    return lang
+            return next(iter(subs), None)
+
+        chosen_lang = pick_lang(manual_subs, req.lang)
+        use_auto = False
+        if not chosen_lang:
+            chosen_lang = pick_lang(auto_subs, req.lang)
+            use_auto = True
+
+        if not chosen_lang:
+            raise HTTPException(404, "Субтитры недоступны для этого видео")
+
+        # Шаг 2: скачиваем только субтитры нужного языка
+        dl_cmd = [
+            "yt-dlp", "--no-playlist", "--no-warnings",
+            "--skip-download",
+            "--convert-subs", "srt",
+            "--sub-langs", chosen_lang,
+            "-o", out_template,
+        ]
+        if use_auto:
+            dl_cmd.append("--write-auto-subs")
+        else:
+            dl_cmd.append("--write-subs")
+        dl_cmd.append(url)
+
+        try:
+            dl_result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            raise HTTPException(408, "Превышено время получения субтитров")
+
+        if dl_result.returncode != 0:
+            raise HTTPException(502, "Не удалось скачать субтитры")
+
+        # Шаг 3: находим SRT-файл
+        srt_files = glob.glob(os.path.join(tmpdir, "*.srt"))
+        if not srt_files:
+            raise HTTPException(404, "SRT-файл не найден после загрузки")
+
+        srt_path = srt_files[0]
+        with open(srt_path, encoding="utf-8", errors="replace") as f:
+            srt_content = f.read()
+
+    # Шаг 4: парсинг
+    segments = parse_srt(srt_content)
+    if not segments:
+        raise HTTPException(422, "Субтитры пусты или не поддаются разбору")
+
+    plain_text = srt_to_plain_text(segments)
+
+    return {
+        "ok": True,
+        "data": {
+            "title": info.get("title", ""),
+            "uploader": info.get("uploader", ""),
+            "duration": info.get("duration"),
+            "language": chosen_lang,
+            "auto_generated": use_auto,
+            "segments_count": len(segments),
+            "text": plain_text,
+            "segments": segments,
+        },
+    }
 
 
 @app.delete("/api/job/{job_id}")

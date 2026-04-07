@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { DownloadItem, useDownloads } from '../store/downloads';
 import { fetchInfo, startDownload, subscribeProgress, getFileUrl, formatDuration } from '../api/media';
+import { TranscriptModal } from './TranscriptModal';
 
 interface Props {
   item: DownloadItem;
@@ -7,6 +9,7 @@ interface Props {
 
 export function VideoCard({ item }: Props) {
   const store = useDownloads();
+  const [showTranscript, setShowTranscript] = useState(false);
 
   async function handleFetch() {
     store.setStatus(item.id, 'fetching');
@@ -165,6 +168,22 @@ export function VideoCard({ item }: Props) {
 
           {/* Кнопки действий */}
           <div className="ml-auto flex items-center gap-2">
+            {/* Транскрипт — доступен когда инфо загружена */}
+            {item.info && (
+              <button
+                onClick={() => setShowTranscript(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: 'var(--surface2)',
+                  color: 'var(--text-dim)',
+                  border: '1px solid var(--border)',
+                }}
+                title="Извлечь транскрипт / субтитры"
+              >
+                📄 Транскрипт
+              </button>
+            )}
+
             {item.status === 'ready' && (
               <button
                 onClick={handleDownload}
@@ -228,6 +247,15 @@ export function VideoCard({ item }: Props) {
             Получить инфо
           </button>
         </div>
+      )}
+
+      {/* Transcript modal */}
+      {showTranscript && item.info && (
+        <TranscriptModal
+          url={item.url}
+          title={item.info.title}
+          onClose={() => setShowTranscript(false)}
+        />
       )}
     </div>
   );
