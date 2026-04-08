@@ -52,10 +52,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return data;
 }
 
-export async function fetchInfo(url: string): Promise<VideoInfo> {
+export async function fetchInfo(url: string, proxy?: string): Promise<VideoInfo> {
   const res = await apiFetch<{ ok: boolean; data: VideoInfo }>('/info', {
     method: 'POST',
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, proxy: proxy || undefined }),
   });
   return res.data;
 }
@@ -67,6 +67,7 @@ export async function startDownload(params: {
   title: string;
   audio_format?: string;
   audio_quality?: string;
+  proxy?: string;
 }): Promise<string> {
   const res = await apiFetch<{ ok: boolean; data: { job_id: string } }>('/download', {
     method: 'POST',
@@ -103,6 +104,13 @@ export function subscribeProgress(
 
 export function getFileUrl(jobId: string): string {
   return `${BASE}/file/${jobId}`;
+}
+
+export async function testProxy(proxy: string): Promise<{ ok: boolean; message: string }> {
+  return apiFetch('/proxy-test', {
+    method: 'POST',
+    body: JSON.stringify({ proxy }),
+  });
 }
 
 export async function deleteJob(jobId: string): Promise<void> {

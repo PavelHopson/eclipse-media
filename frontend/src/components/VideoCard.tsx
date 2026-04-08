@@ -51,6 +51,7 @@ export function VideoCard({ item }: Props) {
         title: item.info.title,
         audio_format: item.format === 'audio' ? item.audioFormat : undefined,
         audio_quality: item.format === 'audio' ? item.audioQuality : undefined,
+        proxy: store.proxy || undefined,
       });
       store.setJobId(item.id, jobId);
 

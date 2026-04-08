@@ -84,6 +84,7 @@ app.add_middleware(
 
 class InfoRequest(BaseModel):
     url: str
+    proxy: str | None = None
 
 class DownloadRequest(BaseModel):
     url: str
@@ -92,10 +93,15 @@ class DownloadRequest(BaseModel):
     title: str = ""
     audio_format: str = "mp3"    # "mp3" | "flac" | "opus" | "m4a" | "wav"
     audio_quality: str = "best"  # "best" | "320" | "192" | "128"
+    proxy: str | None = None     # "socks5://host:port" | "http://host:port"
 
 class TranscriptRequest(BaseModel):
     url: str
-    lang: str = "auto"  # "auto" | код языка ISO 639-1 (en, ru, es, ...)
+    lang: str = "auto"
+    proxy: str | None = None
+
+class ProxyTestRequest(BaseModel):
+    proxy: str
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -154,6 +160,15 @@ def srt_to_plain_text(segments: list[dict]) -> str:
     return " ".join(lines)
 
 
+def _ytdlp_base(proxy: str | None = None) -> list[str]:
+    """Base yt-dlp flags: JS runtime + optional proxy."""
+    cmd = ["yt-dlp", "--no-playlist", "--no-warnings",
+           "--js-runtimes", "node", "--remote-components", "ejs:github"]
+    if proxy and proxy.strip():
+        cmd += ["--proxy", proxy.strip()]
+    return cmd
+
+
 def sanitize_filename(title: str, ext: str) -> str:
     if not title:
         return f"download{ext}"
@@ -188,7 +203,23 @@ def parse_progress_line(line: str) -> dict | None:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.0.0"}
+    return {"ok": True, "version": "1.1.0"}
+
+
+@app.post("/api/proxy-test")
+def proxy_test(req: ProxyTestRequest):
+    """Test if proxy works by fetching YouTube homepage."""
+    cmd = _ytdlp_base(req.proxy) + ["--simulate", "--print", "title",
+                                      "https://www.youtube.com/watch?v=jNQXAC9IVRw"]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            return {"ok": True, "message": "Прокси работает"}
+        return {"ok": False, "message": result.stderr.strip()[:200] or "Ошибка подключения"}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "message": "Таймаут — прокси не отвечает"}
+    except Exception as e:
+        return {"ok": False, "message": str(e)}
 
 
 @app.post("/api/info")
@@ -197,8 +228,7 @@ def get_info(req: InfoRequest):
     if not url:
         raise HTTPException(400, "URL не указан")
 
-    cmd = ["yt-dlp", "--no-playlist", "-j", "--no-warnings",
-           "--js-runtimes", "node", "--remote-components", "ejs:github", url]
+    cmd = _ytdlp_base(req.proxy) + ["-j", url]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     except subprocess.TimeoutExpired:
@@ -266,7 +296,7 @@ def start_download(req: DownloadRequest):
     thread = threading.Thread(
         target=_run_download,
         args=(job_id, url, req.format, req.format_id, req.title,
-              req.audio_format, req.audio_quality),
+              req.audio_format, req.audio_quality, req.proxy),
         daemon=True,
     )
     thread.start()
@@ -293,13 +323,12 @@ def _build_audio_quality_flags(audio_fmt: str, quality: str) -> list[str]:
 
 
 def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title: str,
-                  audio_fmt: str = "mp3", audio_quality: str = "best"):
+                  audio_fmt: str = "mp3", audio_quality: str = "best",
+                  proxy: str | None = None):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "--no-warnings",
-           "--js-runtimes", "node", "--remote-components", "ejs:github",
-           "-o", out_template]
+    cmd = _ytdlp_base(proxy) + ["-o", out_template]
 
     if fmt == "audio":
         safe_fmt = audio_fmt if audio_fmt in AUDIO_FORMAT_EXT else "mp3"
@@ -455,8 +484,7 @@ def get_transcript(req: TranscriptRequest):
         out_template = os.path.join(tmpdir, "sub")
 
         # Шаг 1: получаем метаданные + список доступных субтитров
-        info_cmd = ["yt-dlp", "--no-playlist", "-j", "--no-warnings",
-                    "--js-runtimes", "node", "--remote-components", "ejs:github", url]
+        info_cmd = _ytdlp_base(req.proxy) + ["-j", url]
         try:
             info_result = subprocess.run(info_cmd, capture_output=True, text=True, timeout=60)
         except subprocess.TimeoutExpired:
@@ -500,9 +528,7 @@ def get_transcript(req: TranscriptRequest):
             raise HTTPException(404, "Субтитры недоступны для этого видео")
 
         # Шаг 2: скачиваем только субтитры нужного языка
-        dl_cmd = [
-            "yt-dlp", "--no-playlist", "--no-warnings",
-            "--js-runtimes", "node", "--remote-components", "ejs:github",
+        dl_cmd = _ytdlp_base(req.proxy) + [
             "--skip-download",
             "--convert-subs", "srt",
             "--sub-langs", chosen_lang,

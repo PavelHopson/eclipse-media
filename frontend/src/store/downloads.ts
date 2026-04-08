@@ -43,6 +43,8 @@ export interface HistoryEntry {
 interface DownloadsState {
   items: DownloadItem[];
   history: HistoryEntry[];
+  proxy: string;
+  setProxy: (proxy: string) => void;
   addItem: (url: string) => string;
   removeItem: (id: string) => void;
   setInfo: (id: string, info: VideoInfo) => void;
@@ -67,6 +69,8 @@ export const useDownloads = create<DownloadsState>()(
     (set, get) => ({
       items: [],
       history: [],
+      proxy: '',
+      setProxy: (proxy) => set({ proxy }),
 
       addItem: (url) => {
         const id = makeId();
@@ -174,7 +178,7 @@ export const useDownloads = create<DownloadsState>()(
     }),
     {
       name: 'eclipse-media-store',
-      partialize: (s) => ({ history: s.history }), // только history в localStorage
+      partialize: (s) => ({ history: s.history, proxy: s.proxy }),
     },
   ),
 );

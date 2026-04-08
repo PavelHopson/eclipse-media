@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { UrlInput } from './components/UrlInput';
 import { VideoCard } from './components/VideoCard';
 import { History } from './components/History';
+import { ProxySettings } from './components/ProxySettings';
 import { useDownloads } from './store/downloads';
 import { fetchInfo } from './api/media';
 
@@ -31,7 +32,7 @@ export default function App() {
       ids.map(async ({ id, url }) => {
         store.setStatus(id, 'fetching');
         try {
-          const info = await fetchInfo(url);
+          const info = await fetchInfo(url, store.proxy || undefined);
           store.setInfo(id, info);
           if (info.formats.length > 0) {
             store.setFormatId(id, info.formats[0].id);
@@ -67,6 +68,11 @@ export default function App() {
       {/* Main */}
       <main className="max-w-2xl mx-auto px-4 py-8">
         <UrlInput onSubmit={handleSubmit} loading={fetching} />
+
+        {/* Proxy Settings */}
+        <div className="mt-4">
+          <ProxySettings />
+        </div>
 
         {/* Download items */}
         {store.items.length > 0 && (
