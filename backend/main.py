@@ -23,6 +23,17 @@ from pydantic import BaseModel
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# Auto-detect ffmpeg from imageio_ffmpeg if not in PATH
+try:
+    subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=5)
+except (FileNotFoundError, subprocess.TimeoutExpired):
+    try:
+        import imageio_ffmpeg
+        ffmpeg_dir = os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe())
+        os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    except ImportError:
+        pass
+
 FILE_TTL_SECONDS = 3600  # файлы живут 1 час
 
 jobs: dict[str, dict] = {}
@@ -186,7 +197,8 @@ def get_info(req: InfoRequest):
     if not url:
         raise HTTPException(400, "URL не указан")
 
-    cmd = ["yt-dlp", "--no-playlist", "-j", "--no-warnings", url]
+    cmd = ["yt-dlp", "--no-playlist", "-j", "--no-warnings",
+           "--js-runtimes", "node", "--remote-components", "ejs:github", url]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     except subprocess.TimeoutExpired:
@@ -285,7 +297,9 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "--no-warnings", "-o", out_template]
+    cmd = ["yt-dlp", "--no-playlist", "--no-warnings",
+           "--js-runtimes", "node", "--remote-components", "ejs:github",
+           "-o", out_template]
 
     if fmt == "audio":
         safe_fmt = audio_fmt if audio_fmt in AUDIO_FORMAT_EXT else "mp3"
@@ -441,7 +455,8 @@ def get_transcript(req: TranscriptRequest):
         out_template = os.path.join(tmpdir, "sub")
 
         # Шаг 1: получаем метаданные + список доступных субтитров
-        info_cmd = ["yt-dlp", "--no-playlist", "-j", "--no-warnings", url]
+        info_cmd = ["yt-dlp", "--no-playlist", "-j", "--no-warnings",
+                    "--js-runtimes", "node", "--remote-components", "ejs:github", url]
         try:
             info_result = subprocess.run(info_cmd, capture_output=True, text=True, timeout=60)
         except subprocess.TimeoutExpired:
@@ -487,6 +502,7 @@ def get_transcript(req: TranscriptRequest):
         # Шаг 2: скачиваем только субтитры нужного языка
         dl_cmd = [
             "yt-dlp", "--no-playlist", "--no-warnings",
+            "--js-runtimes", "node", "--remote-components", "ejs:github",
             "--skip-download",
             "--convert-subs", "srt",
             "--sub-langs", chosen_lang,
