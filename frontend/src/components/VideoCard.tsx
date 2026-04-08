@@ -4,22 +4,20 @@ import { fetchInfo, startDownload, subscribeProgress, getFileUrl, formatDuration
 import { TranscriptModal } from './TranscriptModal';
 
 const AUDIO_FORMATS: { value: AudioFormat; label: string; lossless?: boolean }[] = [
-  { value: 'mp3',  label: 'MP3' },
+  { value: 'mp3', label: 'MP3' },
   { value: 'flac', label: 'FLAC', lossless: true },
   { value: 'opus', label: 'Opus' },
-  { value: 'm4a',  label: 'M4A' },
+  { value: 'm4a', label: 'M4A' },
 ];
 
 const AUDIO_QUALITIES: { value: AudioQuality; label: string }[] = [
-  { value: 'best', label: 'Лучшее' },
-  { value: '320',  label: '320 kbps' },
-  { value: '192',  label: '192 kbps' },
-  { value: '128',  label: '128 kbps' },
+  { value: 'best', label: 'Best' },
+  { value: '320', label: '320k' },
+  { value: '192', label: '192k' },
+  { value: '128', label: '128k' },
 ];
 
-interface Props {
-  item: DownloadItem;
-}
+interface Props { item: DownloadItem; }
 
 export function VideoCard({ item }: Props) {
   const store = useDownloads();
@@ -28,12 +26,9 @@ export function VideoCard({ item }: Props) {
   async function handleFetch() {
     store.setStatus(item.id, 'fetching');
     try {
-      const info = await fetchInfo(item.url);
+      const info = await fetchInfo(item.url, store.proxy || undefined);
       store.setInfo(item.id, info);
-      // Выбираем лучшее качество по умолчанию
-      if (info.formats.length > 0) {
-        store.setFormatId(item.id, info.formats[0].id);
-      }
+      if (info.formats.length > 0) store.setFormatId(item.id, info.formats[0].id);
     } catch (e: unknown) {
       store.setStatus(item.id, 'error', e instanceof Error ? e.message : 'Ошибка');
     }
@@ -42,11 +37,9 @@ export function VideoCard({ item }: Props) {
   async function handleDownload() {
     if (!item.info) return;
     store.setStatus(item.id, 'downloading');
-
     try {
       const jobId = await startDownload({
-        url: item.url,
-        format: item.format,
+        url: item.url, format: item.format,
         format_id: item.format === 'video' ? (item.formatId ?? undefined) : undefined,
         title: item.info.title,
         audio_format: item.format === 'audio' ? item.audioFormat : undefined,
@@ -54,18 +47,10 @@ export function VideoCard({ item }: Props) {
         proxy: store.proxy || undefined,
       });
       store.setJobId(item.id, jobId);
-
       const unsub = subscribeProgress(jobId, (event) => {
-        if (event.type === 'progress') {
-          store.setProgress(item.id, event.percent, event.speed, event.eta);
-        } else if (event.type === 'done') {
-          store.setDone(item.id, event.filename);
-          store.addToHistory(item, event.filename);
-          unsub();
-        } else if (event.type === 'error') {
-          store.setStatus(item.id, 'error', event.message);
-          unsub();
-        }
+        if (event.type === 'progress') store.setProgress(item.id, event.percent, event.speed, event.eta);
+        else if (event.type === 'done') { store.setDone(item.id, event.filename); store.addToHistory(item, event.filename); unsub(); }
+        else if (event.type === 'error') { store.setStatus(item.id, 'error', event.message); unsub(); }
       });
     } catch (e: unknown) {
       store.setStatus(item.id, 'error', e instanceof Error ? e.message : 'Ошибка');
@@ -80,248 +65,143 @@ export function VideoCard({ item }: Props) {
     a.click();
   }
 
+  const disabled = item.status === 'downloading' || item.status === 'done';
+
   return (
     <div
-      className="rounded-xl overflow-hidden"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+      className="rounded-2xl overflow-hidden transition-all"
+      style={{
+        background: 'var(--surface)',
+        border: `1px solid ${item.status === 'error' ? 'rgba(255,79,79,0.3)' : item.status === 'done' ? 'rgba(48,216,136,0.2)' : 'var(--border)'}`,
+      }}
     >
-      {/* Шапка с thumbnail */}
-      <div className="flex gap-3 p-4">
+      {/* Header — thumbnail + title */}
+      <div className="flex gap-3.5 p-4">
         {item.info?.thumbnail ? (
-          <img
-            src={item.info.thumbnail}
-            alt={item.info.title}
-            className="w-28 h-16 object-cover rounded-lg flex-shrink-0"
-            style={{ background: 'var(--surface2)' }}
-          />
+          <img src={item.info.thumbnail} alt="" className="w-24 h-14 object-cover rounded-xl flex-shrink-0" style={{ background: 'var(--surface2)' }} />
         ) : (
-          <div
-            className="w-28 h-16 rounded-lg flex-shrink-0 flex items-center justify-center"
-            style={{ background: 'var(--surface2)' }}
-          >
-            <span className="text-2xl">🎬</span>
+          <div className="w-24 h-14 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--surface2), var(--surface3))' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="1.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>
           </div>
         )}
 
         <div className="flex-1 min-w-0">
           {item.info ? (
             <>
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                {item.info.title}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
-                {item.info.uploader}
-                {item.info.duration && ` · ${formatDuration(item.info.duration)}`}
-              </p>
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{item.info.title}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="mono" style={{ color: 'var(--text-dim)' }}>{item.info.uploader}</span>
+                {item.info.duration && (
+                  <span className="tag" style={{ padding: '1px 6px', fontSize: '10px' }}>{formatDuration(item.info.duration)}</span>
+                )}
+              </div>
             </>
           ) : (
-            <p className="text-xs truncate" style={{ color: 'var(--text-dim)' }}>
-              {item.url}
-            </p>
+            <p className="text-xs truncate mono" style={{ color: 'var(--text-dim)' }}>{item.url}</p>
           )}
-
-          {/* Статус/ошибка */}
           {item.status === 'error' && (
-            <p className="text-xs mt-1" style={{ color: 'var(--error)' }}>
-              ✗ {item.error}
+            <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: 'var(--error)' }}>
+              <span>✕</span> {item.error}
             </p>
           )}
         </div>
 
-        {/* Кнопка удаления карточки */}
-        <button
-          onClick={() => store.removeItem(item.id)}
-          className="self-start text-lg leading-none opacity-40 hover:opacity-80 transition-opacity"
-          style={{ color: 'var(--text-dim)' }}
-          title="Убрать"
-        >
-          ×
+        <button onClick={() => store.removeItem(item.id)} className="self-start p-1 rounded-lg transition-colors" style={{ color: 'var(--text-dim)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dim)')}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
-      {/* Контролы — показываем когда info загружена */}
+      {/* Controls */}
       {item.info && item.status !== 'error' && (
-        <div
-          className="px-4 pb-4 flex flex-wrap items-center gap-3"
-        >
-          {/* Формат: Video / Audio */}
-          <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <div className="px-4 pb-4 flex flex-wrap items-center gap-2.5">
+          {/* Format toggle */}
+          <div className="pill-group">
             {(['video', 'audio'] as const).map((fmt) => (
-              <button
-                key={fmt}
-                onClick={() => store.setFormat(item.id, fmt)}
-                disabled={item.status === 'downloading' || item.status === 'done'}
-                className="px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
-                style={{
-                  background: item.format === fmt ? 'var(--accent)' : 'transparent',
-                  color: item.format === fmt ? '#fff' : 'var(--text-dim)',
-                }}
-              >
-                {fmt === 'video' ? '🎬 Видео' : '🎵 Аудио'}
+              <button key={fmt} onClick={() => store.setFormat(item.id, fmt)} disabled={disabled}
+                className={`pill ${item.format === fmt ? 'active' : ''}`}>
+                {fmt === 'video' ? '▶ Видео' : '♫ Аудио'}
               </button>
             ))}
           </div>
 
-          {/* Аудио-формат (только для audio) */}
+          {/* Audio format pills */}
           {item.format === 'audio' && (
-            <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            <div className="pill-group">
               {AUDIO_FORMATS.map((af) => (
-                <button
-                  key={af.value}
-                  onClick={() => store.setAudioFormat(item.id, af.value)}
-                  disabled={item.status === 'downloading' || item.status === 'done'}
-                  className="px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
-                  style={{
-                    background: item.audioFormat === af.value ? 'var(--surface2)' : 'transparent',
-                    color: item.audioFormat === af.value ? 'var(--text)' : 'var(--text-dim)',
-                    borderLeft: af.value !== 'mp3' ? '1px solid var(--border)' : undefined,
-                  }}
-                  title={af.lossless ? 'Lossless — без потерь' : undefined}
-                >
-                  {af.label}
-                  {af.lossless && (
-                    <span
-                      className="ml-1 text-xs"
-                      style={{ color: 'var(--success)', fontSize: '9px' }}
-                    >
-                      ✦
-                    </span>
-                  )}
+                <button key={af.value} onClick={() => store.setAudioFormat(item.id, af.value)} disabled={disabled}
+                  className={`pill ${item.audioFormat === af.value ? 'active' : ''}`}>
+                  {af.label}{af.lossless && <span style={{ color: 'var(--accent2)', marginLeft: 2, fontSize: 9 }}>✦</span>}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Качество аудио — только для форматов с потерями */}
+          {/* Audio quality */}
           {item.format === 'audio' && !['flac', 'wav'].includes(item.audioFormat) && (
-            <select
-              value={item.audioQuality}
-              onChange={(e) => store.setAudioQuality(item.id, e.target.value as AudioQuality)}
-              disabled={item.status === 'downloading' || item.status === 'done'}
-              className="px-2.5 py-1.5 text-xs rounded-lg outline-none disabled:opacity-50"
-              style={{
-                background: 'var(--surface2)',
-                color: 'var(--text)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {AUDIO_QUALITIES.map((q) => (
-                <option key={q.value} value={q.value}>{q.label}</option>
-              ))}
+            <select value={item.audioQuality} onChange={(e) => store.setAudioQuality(item.id, e.target.value as AudioQuality)} disabled={disabled}
+              className="btn-ghost" style={{ padding: '5px 10px', fontSize: '11px', appearance: 'auto' }}>
+              {AUDIO_QUALITIES.map((q) => (<option key={q.value} value={q.value}>{q.label}</option>))}
             </select>
           )}
 
-          {/* Качество видео */}
+          {/* Video quality */}
           {item.format === 'video' && item.info.formats.length > 0 && (
-            <select
-              value={item.formatId ?? ''}
-              onChange={(e) => store.setFormatId(item.id, e.target.value || null)}
-              disabled={item.status === 'downloading' || item.status === 'done'}
-              className="px-3 py-1.5 text-xs rounded-lg outline-none disabled:opacity-50"
-              style={{
-                background: 'var(--surface2)',
-                color: 'var(--text)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {item.info.formats.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.label}
-                </option>
-              ))}
+            <select value={item.formatId ?? ''} onChange={(e) => store.setFormatId(item.id, e.target.value || null)} disabled={disabled}
+              className="btn-ghost" style={{ padding: '5px 10px', fontSize: '11px', appearance: 'auto' }}>
+              {item.info.formats.map((f) => (<option key={f.id} value={f.id}>{f.label}</option>))}
             </select>
           )}
 
-          {/* Кнопки действий */}
+          {/* Action buttons */}
           <div className="ml-auto flex items-center gap-2">
-            {/* Транскрипт — доступен когда инфо загружена */}
             {item.info && (
-              <button
-                onClick={() => setShowTranscript(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  background: 'var(--surface2)',
-                  color: 'var(--text-dim)',
-                  border: '1px solid var(--border)',
-                }}
-                title="Извлечь транскрипт / субтитры"
-              >
+              <button onClick={() => setShowTranscript(true)} className="btn-ghost" style={{ fontSize: '11px' }}>
                 📄 Транскрипт
               </button>
             )}
 
             {item.status === 'ready' && (
-              <button
-                onClick={handleDownload}
-                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
+              <button onClick={handleDownload} className="btn-accent" style={{ padding: '7px 16px', fontSize: '12px' }}>
                 ↓ Скачать
               </button>
             )}
-
             {item.status === 'fetching' && (
-              <span className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                Загрузка...
+              <span className="flex items-center gap-2 mono" style={{ color: 'var(--text-dim)' }}>
+                <span className="inline-block w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin" /> Загрузка...
               </span>
             )}
-
             {item.status === 'done' && (
-              <button
-                onClick={handleSave}
-                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
-                style={{ background: 'var(--success)', color: '#000' }}
-              >
-                ✓ Сохранить файл
+              <button onClick={handleSave} className="btn-accent" style={{ padding: '7px 16px', fontSize: '12px', background: 'linear-gradient(135deg, var(--success), #28c070)' }}>
+                ✓ Сохранить
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Прогресс-бар */}
+      {/* Progress */}
       {item.status === 'downloading' && (
         <div className="px-4 pb-4">
-          <div
-            className="rounded-full overflow-hidden h-1.5 mb-1.5"
-            style={{ background: 'var(--surface2)' }}
-          >
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${item.progress}%`, background: 'var(--accent)' }}
-            />
+          <div className="progress-track">
+            <div className="progress-fill" style={{ width: `${item.progress}%` }} />
           </div>
-          <div className="flex justify-between text-xs" style={{ color: 'var(--text-dim)' }}>
+          <div className="flex justify-between mt-2 mono" style={{ color: 'var(--text-dim)' }}>
             <span>{item.progress.toFixed(1)}%{item.speed ? ` · ${item.speed}` : ''}</span>
             {item.eta && <span>ETA {item.eta}</span>}
           </div>
         </div>
       )}
 
-      {/* idle — кнопка загрузить инфо */}
+      {/* Idle — fetch button */}
       {item.status === 'idle' && (
         <div className="px-4 pb-4">
-          <button
-            onClick={handleFetch}
-            className="text-xs px-3 py-1.5 rounded-lg transition-all"
-            style={{
-              background: 'var(--surface2)',
-              color: 'var(--text-dim)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            Получить инфо
-          </button>
+          <button onClick={handleFetch} className="btn-ghost">Получить инфо</button>
         </div>
       )}
 
-      {/* Transcript modal */}
       {showTranscript && item.info && (
-        <TranscriptModal
-          url={item.url}
-          title={item.info.title}
-          onClose={() => setShowTranscript(false)}
-        />
+        <TranscriptModal url={item.url} title={item.info.title} onClose={() => setShowTranscript(false)} />
       )}
     </div>
   );
