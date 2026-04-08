@@ -70,8 +70,7 @@ export function ProxySettings() {
             <button
               onClick={handleSave}
               disabled={input.trim() === proxy}
-              className="px-3 py-2 rounded-lg text-xs font-medium transition-all disabled:opacity-30"
-              style={{ background: 'var(--accent)', color: '#fff' }}
+              className="btn-primary" style={{ padding: '7px 14px' }
             >
               Сохранить
             </button>

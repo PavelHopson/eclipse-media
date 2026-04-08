@@ -61,7 +61,7 @@ export function UrlInput({ onSubmit, loading }: Props) {
       />
       <div className="flex items-center justify-between px-4 pb-3">
         <span className="mono" style={{ color: 'var(--text-dim)' }}>Enter — отправить · Shift+Enter — новая строка</span>
-        <button onClick={handleSubmit} disabled={!value.trim() || loading} className="btn-accent" style={{ padding: '7px 16px', fontSize: '12px' }}>
+        <button onClick={handleSubmit} disabled={!value.trim() || loading} className="btn-primary">
           {loading ? (<><span className="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Загрузка...</>) : 'Получить →'}
         </button>
       </div>

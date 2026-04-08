@@ -162,7 +162,7 @@ export function VideoCard({ item }: Props) {
             )}
 
             {item.status === 'ready' && (
-              <button onClick={handleDownload} className="btn-accent" style={{ padding: '7px 16px', fontSize: '12px' }}>
+              <button onClick={handleDownload} className="btn-primary">
                 ↓ Скачать
               </button>
             )}
@@ -172,7 +172,7 @@ export function VideoCard({ item }: Props) {
               </span>
             )}
             {item.status === 'done' && (
-              <button onClick={handleSave} className="btn-accent" style={{ padding: '7px 16px', fontSize: '12px', background: 'linear-gradient(135deg, var(--success), #28c070)' }}>
+              <button onClick={handleSave} className="btn-success">
                 ✓ Сохранить
               </button>
             )}

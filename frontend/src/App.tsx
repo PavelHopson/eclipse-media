@@ -50,13 +50,11 @@ export default function App() {
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%)',
+              background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%)',
               boxShadow: '0 2px 12px var(--accent-glow)',
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
+            <span style={{ fontSize: '14px' }}>⚡</span>
           </div>
           <div>
             <span className="font-semibold text-sm tracking-tight" style={{ color: 'var(--text)' }}>
@@ -68,10 +66,7 @@ export default function App() {
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-3">
-          <span className="tag">
-            <span style={{ color: 'var(--success)', marginRight: 4 }}>●</span>
-            1000+ сайтов
-          </span>
+          <span className="tag">1000+ сайтов</span>
         </div>
       </header>
 
@@ -100,17 +95,14 @@ export default function App() {
         {store.items.length === 0 && (
           <div className="mt-20 text-center animate-in">
             <div
-              className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center"
+              className="w-14 h-14 mx-auto mb-5 rounded-2xl flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, var(--surface2), var(--surface3))',
+                background: 'var(--surface)',
                 border: '1px solid var(--border)',
+                boxShadow: '0 0 30px var(--accent-glow)',
               }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+              <span style={{ fontSize: '24px' }}>⚡</span>
             </div>
             <p className="text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
               Вставьте ссылку для скачивания
