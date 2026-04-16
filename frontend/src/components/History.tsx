@@ -46,10 +46,10 @@ export function History() {
         </button>
       </div>
       <div
-        className="rounded-2xl divide-y"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)', divideColor: 'var(--border)' }}
+        className="rounded-2xl"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
-        <div className="px-4" style={{ borderColor: 'var(--border)' }}>
+        <div className="px-4">
           {history.slice(0, 10).map((entry) => (
             <div key={entry.id} style={{ borderBottom: '1px solid var(--border)' }}>
               <EntryRow entry={entry} />
