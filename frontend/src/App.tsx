@@ -34,7 +34,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen eclipse-grid" style={{ background: 'var(--bg)' }}>
       {/* ─── Header ─── */}
       <header
         className="sticky top-0 z-20 px-5 py-3.5 flex items-center gap-3"
@@ -65,7 +65,7 @@ export default function App() {
             <span style={{ fontSize: '14px' }}>⚡</span>
           </div>
           <div className="relative">
-            <span className="font-semibold text-sm tracking-tight" style={{ color: 'var(--text)' }}>
+            <span className="font-semibold text-sm tracking-tight text-glow" style={{ color: 'var(--text)' }}>
               Eclipse Media
             </span>
             <span className="text-xs ml-2 mono" style={{ color: 'var(--text-dim)' }}>v1.1</span>
