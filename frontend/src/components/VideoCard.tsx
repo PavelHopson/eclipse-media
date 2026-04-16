@@ -69,7 +69,7 @@ export function VideoCard({ item }: Props) {
 
   return (
     <div
-      className="rounded-2xl overflow-hidden transition-all"
+      className="rounded-2xl overflow-hidden transition-all eclipse-card"
       style={{
         background: 'var(--surface)',
         border: `1px solid ${item.status === 'error' ? 'rgba(255,79,79,0.3)' : item.status === 'done' ? 'rgba(48,216,136,0.2)' : 'var(--border)'}`,
@@ -162,7 +162,7 @@ export function VideoCard({ item }: Props) {
             )}
 
             {item.status === 'ready' && (
-              <button onClick={handleDownload} className="btn-primary">
+              <button onClick={handleDownload} className="btn-primary btn-eclipse">
                 ↓ Скачать
               </button>
             )}
@@ -184,7 +184,7 @@ export function VideoCard({ item }: Props) {
       {item.status === 'downloading' && (
         <div className="px-4 pb-4">
           <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${item.progress}%` }} />
+            <div className="progress-fill eclipse-progress" style={{ width: `${item.progress}%` }} />
           </div>
           <div className="flex justify-between mt-2 mono" style={{ color: 'var(--text-dim)' }}>
             <span>{item.progress.toFixed(1)}%{item.speed ? ` · ${item.speed}` : ''}</span>

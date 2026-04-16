@@ -42,10 +42,14 @@ export function UrlInput({ onSubmit, loading }: Props) {
     <div
       className="rounded-2xl overflow-hidden transition-all"
       style={{
-        background: 'var(--surface)',
-        border: `1px solid ${value ? 'var(--accent)' : 'var(--border)'}`,
-        boxShadow: value ? '0 0 0 1px var(--accent), 0 4px 24px var(--accent-glow)' : 'none',
-        transition: 'border-color 0.3s, box-shadow 0.3s',
+        background: value
+          ? 'linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(135deg, var(--accent), var(--accent-light), var(--accent2)) border-box'
+          : 'var(--surface)',
+        border: value ? '1px solid transparent' : '1px solid var(--border)',
+        boxShadow: value
+          ? '0 0 0 1px rgba(107,163,255,0.3), 0 4px 28px rgba(107,163,255,0.18), 0 0 60px rgba(107,163,255,0.06)'
+          : 'none',
+        transition: 'border-color 0.3s, box-shadow 0.3s, background 0.3s',
       }}
     >
       <textarea
@@ -61,7 +65,7 @@ export function UrlInput({ onSubmit, loading }: Props) {
       />
       <div className="flex items-center justify-between px-4 pb-3">
         <span className="mono" style={{ color: 'var(--text-dim)' }}>Enter — отправить · Shift+Enter — новая строка</span>
-        <button onClick={handleSubmit} disabled={!value.trim() || loading} className="btn-primary">
+        <button onClick={handleSubmit} disabled={!value.trim() || loading} className="btn-primary btn-eclipse">
           {loading ? (<><span className="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Загрузка...</>) : 'Получить →'}
         </button>
       </div>

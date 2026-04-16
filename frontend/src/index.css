@@ -85,7 +85,11 @@
     color: var(--text-dim); background: transparent; border: none; cursor: pointer; transition: all 0.2s;
   }
   .pill:hover { color: var(--text-secondary); }
-  .pill.active { color: white; background: var(--accent); box-shadow: 0 2px 8px var(--accent-glow); }
+  .pill.active {
+    color: white;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+    box-shadow: 0 2px 10px var(--accent-glow), 0 0 20px rgba(107,163,255,0.1);
+  }
   .pill:disabled { opacity: 0.35; pointer-events: none; }
 
   .tag {
@@ -94,11 +98,17 @@
     background: var(--surface2); color: var(--text-secondary); border: 1px solid var(--border);
   }
 
-  .progress-track { height: 3px; border-radius: 2px; background: var(--surface2); overflow: hidden; }
+  .progress-track { height: 3px; border-radius: 2px; background: var(--surface2); overflow: hidden; position: relative; }
   .progress-fill {
     height: 100%; border-radius: 2px;
     background: linear-gradient(90deg, var(--accent-dim), var(--accent-light));
     transition: width 0.3s ease; box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .progress-fill.eclipse-progress {
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent), var(--accent-light), var(--accent2));
+    background-size: 200% 100%;
+    animation: eclipseProgressShimmer 2s ease infinite;
+    box-shadow: 0 0 12px var(--accent-glow), 0 0 4px rgba(245,166,35,0.15);
   }
 
   .mono { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
@@ -116,3 +126,34 @@
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-in { animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Eclipse progress bar shimmer */
+@keyframes eclipseProgressShimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Eclipse card hover glow */
+.eclipse-card {
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.eclipse-card:hover {
+  border-color: rgba(107,163,255,0.25) !important;
+  box-shadow: 0 0 20px rgba(107,163,255,0.08), 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* Eclipse accent button */
+.btn-eclipse {
+  background: linear-gradient(135deg, var(--accent) 0%, #5B93EF 50%, var(--accent-light) 100%);
+  box-shadow: 0 2px 16px var(--accent-glow), 0 0 32px rgba(107,163,255,0.1), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.btn-eclipse:hover {
+  box-shadow: 0 6px 28px rgba(107,163,255,0.25), 0 0 48px rgba(107,163,255,0.12);
+}
+
+/* Section separator */
+.eclipse-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(107,163,255,0.15) 30%, rgba(107,163,255,0.15) 70%, transparent 100%);
+}
