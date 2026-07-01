@@ -19,6 +19,16 @@
 - Авто-удаление файлов через 1 час (TTL)
 - Превью: thumbnail, название, длительность, автор
 
+## Product radar
+
+Источник: [Eclipse Library · July 2026 project integration](https://library.eclipse-forge.ru/#guide/july-2026-project-integration).
+
+| Reference | Как использовать |
+|-----------|------------------|
+| **Google image/video low-cost tier** | Проверить как дешёвый provider для генерации/редактирования preview, thumbnails, short clips и видео-ассетов вокруг скачанного контента |
+| **Seed-Audio 1.0** | Reference для озвучки/диалогов и voiceover-пайплайнов. Voice cloning только с явным согласием |
+| **Torlink** | Только reference для CLI UX, очередей загрузки и source health-check. Не превращать Eclipse Media в публичный downloader "любых файлов"; тестировать только legal/open-data сценарии |
+
 ## Быстрый старт
 
 ### Docker (рекомендуется)
