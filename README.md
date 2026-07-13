@@ -27,6 +27,9 @@
 |-----------|------------------|
 | **Google image/video low-cost tier** | Проверить как дешёвый provider для генерации/редактирования preview, thumbnails, short clips и видео-ассетов вокруг скачанного контента |
 | **Seed-Audio 1.0** | Reference для озвучки/диалогов и voiceover-пайплайнов. Voice cloning только с явным согласием |
+| **Voicetypr / Audio Transcriber** | Локальная/веб-транскрибация: видео/аудио → transcript → summary → action clips |
+| **Sokuji** | Live translation / virtual microphone pattern для будущего режима “перевести ролик/созвон”; только consent-safe сценарии |
+| **ChatCut / MaxFusion / video-use** | Workflow benchmark: очистка речи, субтитры, motion inserts, variants, project memory. Не core dependency до API/privacy/pricing review |
 | **Torlink** | Только reference для CLI UX, очередей загрузки и source health-check. Не превращать Eclipse Media в публичный downloader "любых файлов"; тестировать только legal/open-data сценарии |
 
 ## Быстрый старт
