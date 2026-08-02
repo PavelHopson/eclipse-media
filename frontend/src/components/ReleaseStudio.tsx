@@ -1,8 +1,14 @@
 import { useState } from 'react';
 
-const CHECK_COMMAND = 'cd frontend/public/studio/eclipse-release && npm run check';
-const VERIFY_COMMAND = 'cd frontend/public/studio/eclipse-release && npm run verify';
-const RENDER_COMMAND = 'cd frontend/public/studio/eclipse-release && npm run render';
+const RELEASE_DIR_COMMAND = 'cd frontend/public/studio/eclipse-release';
+const CHECK_COMMAND = `${RELEASE_DIR_COMMAND}; npm run check`;
+const VERIFY_COMMAND = `${RELEASE_DIR_COMMAND}; npm run verify`;
+const FORMATS = {
+  landscape: { label: '16:9', command: `${RELEASE_DIR_COMMAND}; npm run render:landscape` },
+  vertical: { label: '9:16', command: `${RELEASE_DIR_COMMAND}; npm run render:vertical` },
+  square: { label: '1:1', command: `${RELEASE_DIR_COMMAND}; npm run render:square` },
+} as const;
+type ReleaseFormat = keyof typeof FORMATS;
 
 function CopyIcon() {
   return (
@@ -24,6 +30,8 @@ function PlayIcon() {
 
 export function ReleaseStudio() {
   const [copied, setCopied] = useState<string | null>(null);
+  const [format, setFormat] = useState<ReleaseFormat>('landscape');
+  const renderCommand = FORMATS[format].command;
 
   async function copyCommand(value: string, label: string) {
     try {
@@ -61,8 +69,8 @@ export function ReleaseStudio() {
             </button>
           </div>
           <div className="studio-runtime" role="note">
-            <span className="studio-runtime__signal is-pending" aria-hidden="true" />
-            Render включится после локальной установки и проверки HyperFrames CLI 0.7.88
+            <span className="studio-runtime__signal" aria-hidden="true" />
+            Exact HyperFrames CLI 0.7.88 закреплён lockfile · verify обязателен перед render
           </div>
         </div>
 
@@ -80,9 +88,16 @@ export function ReleaseStudio() {
               <p className="studio-eyebrow">LIVE COMPOSITION</p>
               <h2>Eclipse Release Signal</h2>
             </div>
-            <span className="studio-format">16:9 · 15 sec</span>
+            <span className="studio-format">{FORMATS[format].label} · 15 sec</span>
           </div>
-          <div className="studio-preview-frame">
+          <div className="studio-format-switch" role="group" aria-label="Формат видео">
+            {(Object.keys(FORMATS) as ReleaseFormat[]).map((item) => (
+              <button key={item} type="button" className={format === item ? 'is-active' : ''} aria-pressed={format === item} onClick={() => setFormat(item)}>
+                {FORMATS[item].label}
+              </button>
+            ))}
+          </div>
+          <div className={`studio-preview-frame studio-preview-frame--${format}`}>
             <iframe
               title="Предпросмотр Eclipse Release Signal"
               src="/studio/eclipse-release/preview.html"
@@ -110,7 +125,7 @@ export function ReleaseStudio() {
             </li>
             <li>
               <span>03</span>
-              <div><strong>Подключите render CLI</strong><p>После dependency audit выполните <code>verify</code>, затем соберите MP4.</p></div>
+              <div><strong>Соберите нужный формат</strong><p>Выполните <code>verify</code>, выберите 16:9, 9:16 или 1:1 и запустите показанную render-команду.</p></div>
             </li>
           </ol>
 
@@ -135,14 +150,14 @@ export function ReleaseStudio() {
           <div className="studio-command-block">
             <div>
               <span className="mono">Render после verify</span>
-              <code>{RENDER_COMMAND}</code>
+              <code>{renderCommand}</code>
             </div>
-            <button type="button" aria-label="Скопировать команду render" onClick={() => copyCommand(RENDER_COMMAND, 'Команда render скопирована')}>
+            <button type="button" aria-label={`Скопировать команду render ${FORMATS[format].label}`} onClick={() => copyCommand(renderCommand, `Команда render ${FORMATS[format].label} скопирована`)}>
               <CopyIcon />
             </button>
           </div>
 
-          <p className="studio-feedback" aria-live="polite">{copied ?? 'CLI не скачивается автоматически; публикация остаётся ручной.'}</p>
+          <p className="studio-feedback" aria-live="polite">{copied ?? 'Exact CLI запускается локально; публикация остаётся ручной.'}</p>
         </aside>
       </div>
 
@@ -150,7 +165,7 @@ export function ReleaseStudio() {
         <div><span>01</span><strong>Brand kit</strong><p>Eclipse black, signal blue и solar accent.</p></div>
         <div><span>02</span><strong>Deterministic motion</strong><p>Paused GSAP timeline без случайного времени.</p></div>
         <div><span>03</span><strong>Local contract</strong><p>Timing, SRI и supply-chain guards без network.</p></div>
-        <div><span>04</span><strong>CLI fail closed</strong><p>Нет локальной exact-версии — нет скрытого download или render.</p></div>
+        <div><span>04</span><strong>Exact CLI</strong><p>Только версия 0.7.88 из lockfile; runner не использует скрытый download или npx.</p></div>
       </div>
     </section>
   );

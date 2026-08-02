@@ -3,17 +3,30 @@
   "private": true,
   "version": "0.2.0",
   "hyperframes": {
-    "package": "@hyperframes/cli",
+    "package": "hyperframes",
     "version": "0.7.88",
     "sourceTag": "v0.7.88",
     "sourceCommit": "74fadf69c464c0e0658bd7a6b740986fc3aceba8"
   },
+  "formats": {
+    "landscape": { "ratio": "16:9", "width": 1920, "height": 1080 },
+    "vertical": { "ratio": "9:16", "width": 1080, "height": 1920 },
+    "square": { "ratio": "1:1", "width": 1080, "height": 1080 }
+  },
   "scripts": {
     "check": "node scripts/validate-template.mjs",
-    "hyperframes:lint": "node scripts/run-hyperframes.mjs lint index.html",
-    "hyperframes:validate": "node scripts/run-hyperframes.mjs validate index.html",
-    "verify": "npm run check && npm run hyperframes:lint && npm run hyperframes:validate",
-    "preview": "node scripts/run-hyperframes.mjs preview index.html",
-    "render": "node scripts/run-hyperframes.mjs render index.html --output renders/eclipse-release.mp4"
+    "formats:build": "node scripts/create-format-variants.mjs",
+    "hyperframes:lint": "node scripts/run-hyperframes.mjs lint .",
+    "hyperframes:check": "node scripts/run-hyperframes.mjs check .",
+    "hyperframes:validate": "node scripts/run-hyperframes.mjs validate .",
+    "verify": "npm run check && npm run hyperframes:check",
+    "preview": "node scripts/run-hyperframes.mjs preview .",
+    "render": "npm run render:landscape",
+    "render:landscape": "npm run formats:build && node scripts/run-hyperframes.mjs render -c generated/eclipse-release-landscape.html --output renders/eclipse-release-16x9.mp4",
+    "render:vertical": "npm run formats:build && node scripts/run-hyperframes.mjs render -c generated/eclipse-release-vertical.html --output renders/eclipse-release-9x16.mp4",
+    "render:square": "npm run formats:build && node scripts/run-hyperframes.mjs render -c generated/eclipse-release-square.html --output renders/eclipse-release-1x1.mp4"
+  },
+  "devDependencies": {
+    "hyperframes": "0.7.88"
   }
 }

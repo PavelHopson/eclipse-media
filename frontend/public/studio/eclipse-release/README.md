@@ -1,32 +1,35 @@
 # Eclipse Release Signal
 
 15-секундная HyperFrames-ready композиция для release announcements, roadmap updates и
-коротких product teasers Eclipse Forge. Browser preview и локальный contract check уже работают;
-CLI render остаётся закрыт до exact dependency audit и lockfile.
+коротких product teasers Eclipse Forge. Browser preview, unified quality gate и локальный MP4 render
+работают через проверенный exact dependency и lockfile.
 
 ## Быстрый старт
 
-Для preview достаточно запущенного frontend Eclipse Media. Offline contract check требует Node.js 22+:
+Для preview достаточно запущенного frontend Eclipse Media. Полный pipeline требует Node.js 22+ и FFmpeg:
 
 ```powershell
 cd frontend/public/studio/eclipse-release
-npm run check
-```
-
-`check` проверяет пять scene windows, общую длительность, SHA-256 и SRI локальной exact-копии
-GSAP, deterministic guards и отсутствие implicit `npx`.
-
-Целевой CLI закреплён на официальном tag `@hyperframes/cli@0.7.88` и commit
-`74fadf69c464c0e0658bd7a6b740986fc3aceba8`. Он намеренно не скачивается автоматически.
-После восстановления npm registry нужно отдельно проверить package metadata/integrity, добавить exact
-devDependency и commit `package-lock.json`. Только затем:
-
-```powershell
+npm ci
 npm run verify
 npm run render
 ```
 
-Результат: `renders/eclipse-release.mp4`. Если exact CLI не установлен, runner завершится fail closed.
+`verify` проверяет пять scene windows, общую длительность, SHA-256 и SRI локальной exact-копии
+GSAP, deterministic guards, runtime, layout, motion и WCAG contrast. `render` создаёт
+`renders/eclipse-release-16x9.mp4`.
+
+Дополнительные форматы используют ту же source composition и создаются детерминированно:
+
+```powershell
+npm run render:vertical # renders/eclipse-release-9x16.mp4
+npm run render:square   # renders/eclipse-release-1x1.mp4
+```
+
+Целевой CLI закреплён на опубликованном пакете `hyperframes@0.7.88`, официальном tag `v0.7.88` и commit
+`74fadf69c464c0e0658bd7a6b740986fc3aceba8`. Package metadata/integrity, npm signatures,
+attestations и audit проверены перед фиксацией lockfile. Если exact CLI не установлен или версия
+отличается от `0.7.88`, runner завершится fail closed.
 Не запускайте template с production secrets или закрытыми клиентскими материалами.
 
 ## Как менять ролик
@@ -36,8 +39,7 @@ npm run render
    `data-duration` у `#stage`.
 3. Для новых анимаций используйте только paused GSAP timeline `window.__timelines`.
 4. Не используйте `Date.now()`, `Math.random()`, `repeat: -1` или wall-clock logic.
-5. После каждой правки выполняйте `npm run check`, затем смотрите preview целиком; после подключения
-   exact CLI дополнительно выполняйте `npm run verify`.
+5. После каждой правки выполняйте `npm run verify`, затем смотрите preview и готовый render целиком.
 
 Публикация не автоматизирована: готовый MP4 сначала проверяется человеком и только потом
 прикрепляется в Eclipse Chat или публикуется на landing/social channels.
@@ -50,5 +52,19 @@ npm run render
 - GSAP распространяется по отдельной GreenSock “no charge” license, а не по Apache-2.0 HyperFrames;
   copyright header сохраняется, условия redistribution проверяются перед отдельной продажей template/SDK.
 - Query parameters не пересылаются в composition iframe.
-- Runner принимает только локальный `@hyperframes/cli@0.7.88`, проверяет package name/version и
+- Runner принимает только локальный `hyperframes@0.7.88`, проверяет package name/version и
   не использует shell или network fallback.
+
+## Форматы публикации
+
+Один source template собирается в три deterministic composition:
+
+```powershell
+npm run render:landscape # 1920x1080
+npm run render:vertical  # 1080x1920
+npm run render:square    # 1080x1080
+```
+
+Перед render фиксированный скрипт создаёт variant в ignored-папке `generated/`. Размеры и
+composition id читаются только из `package.json`; пользовательский путь или shell-команда не
+принимаются. Результат всё равно нужно просмотреть и подтвердить вручную перед публикацией.

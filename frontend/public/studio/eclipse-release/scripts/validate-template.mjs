@@ -3,11 +3,12 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
-const [composition, preview, manifestText, gsapBytes] = await Promise.all([
+const [composition, preview, manifestText, gsapBytes, variantBuilder] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
   readFile(new URL('preview.html', root), 'utf8'),
   readFile(new URL('package.json', root), 'utf8'),
   readFile(new URL('vendor/gsap-3.14.2.min.js', root)),
+  readFile(new URL('scripts/create-format-variants.mjs', root), 'utf8'),
 ]);
 const manifest = JSON.parse(manifestText);
 
@@ -47,7 +48,14 @@ assert.doesNotMatch(preview, /searchParams|location\.search/);
 
 const scripts = Object.values(manifest.scripts ?? {}).join('\n');
 assert.doesNotMatch(scripts, /\bnpx\b|--yes/);
-assert.equal(manifest.hyperframes?.package, '@hyperframes/cli');
+assert.equal(manifest.scripts?.['hyperframes:check'], 'node scripts/run-hyperframes.mjs check .');
+assert.equal(manifest.scripts?.render, 'npm run render:landscape');
+assert.deepEqual(Object.keys(manifest.formats ?? {}), ['landscape', 'vertical', 'square']);
+assert.equal(manifest.formats.vertical.ratio, '9:16');
+assert.equal(manifest.formats.square.ratio, '1:1');
+assert.doesNotMatch(variantBuilder, /exec|spawn|fetch|https?:\/\//);
+assert.doesNotMatch(scripts, /(?:lint|check|validate|preview|render) index\.html/);
+assert.equal(manifest.hyperframes?.package, 'hyperframes');
 assert.equal(manifest.hyperframes?.version, '0.7.88');
 assert.match(manifest.hyperframes?.sourceCommit ?? '', /^[a-f0-9]{40}$/);
 

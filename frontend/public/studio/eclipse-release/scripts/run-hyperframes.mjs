@@ -4,9 +4,9 @@ import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const expectedName = '@hyperframes/cli';
+const expectedName = 'hyperframes';
 const expectedVersion = '0.7.88';
-const packageRoot = resolve(workspace, 'node_modules', '@hyperframes', 'cli');
+const packageRoot = resolve(workspace, 'node_modules', 'hyperframes');
 const packageFile = resolve(packageRoot, 'package.json');
 
 let manifest;
