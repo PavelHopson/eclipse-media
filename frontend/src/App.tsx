@@ -1,13 +1,18 @@
 import { useState } from 'react';
+import './studio.css';
 import { UrlInput } from './components/UrlInput';
 import { VideoCard } from './components/VideoCard';
 import { History } from './components/History';
 import { ProxySettings } from './components/ProxySettings';
+import { ReleaseStudio } from './components/ReleaseStudio';
 import { useDownloads } from './store/downloads';
 import { fetchInfo } from './api/media';
 
+type Workspace = 'downloads' | 'studio';
+
 export default function App() {
   const [fetching, setFetching] = useState(false);
+  const [workspace, setWorkspace] = useState<Workspace>('downloads');
   const store = useDownloads();
 
   async function handleSubmit(urls: string[]) {
@@ -37,7 +42,7 @@ export default function App() {
     <div className="min-h-screen eclipse-grid" style={{ background: 'var(--bg)' }}>
       {/* ─── Header ─── */}
       <header
-        className="sticky top-0 z-20 px-5 py-3.5 flex items-center gap-3"
+        className="app-header sticky top-0 z-20 px-5 py-3.5 flex items-center gap-3"
         style={{
           background: 'rgba(6,6,10,0.85)',
           backdropFilter: 'blur(16px)',
@@ -72,14 +77,34 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right side */}
-        <div className="ml-auto flex items-center gap-3">
-          <span className="tag">1000+ сайтов</span>
+        <nav className="workspace-switch" aria-label="Раздел Eclipse Media">
+          <button
+            type="button"
+            className={workspace === 'downloads' ? 'workspace-switch__item is-active' : 'workspace-switch__item'}
+            aria-pressed={workspace === 'downloads'}
+            onClick={() => setWorkspace('downloads')}
+          >
+            Загрузки
+          </button>
+          <button
+            type="button"
+            className={workspace === 'studio' ? 'workspace-switch__item is-active' : 'workspace-switch__item'}
+            aria-pressed={workspace === 'studio'}
+            onClick={() => setWorkspace('studio')}
+          >
+            Видео-студия
+          </button>
+        </nav>
+
+        <div className="header-status">
+          <span className="tag">{workspace === 'downloads' ? '1000+ сайтов' : 'Local preview'}</span>
         </div>
       </header>
 
       {/* ─── Main Content ─── */}
-      <main className="max-w-2xl mx-auto px-4 pt-8 pb-16">
+      <main className={workspace === 'downloads' ? 'max-w-2xl mx-auto px-4 pt-8 pb-16' : 'studio-shell'}>
+        {workspace === 'studio' ? <ReleaseStudio /> : (
+          <>
         {/* URL Input */}
         <UrlInput onSubmit={handleSubmit} loading={fetching} />
 
@@ -139,6 +164,8 @@ export default function App() {
 
         {/* History */}
         <History />
+          </>
+        )}
       </main>
     </div>
   );

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Eclipse Release Signal Preview</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #030405; }
+      iframe { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; border: 0; opacity: 0; transition: opacity .3s ease; }
+      body.is-ready iframe { opacity: 1; }
+      .fallback { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; color: #f4f7fb; font-family: 'Segoe UI', sans-serif; background: radial-gradient(circle at 70% 38%, rgba(107, 163, 255, .15), transparent 34%), #030405; }
+      .fallback::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(107, 163, 255, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(107, 163, 255, .05) 1px, transparent 1px); background-size: 42px 42px; mask-image: linear-gradient(to bottom, #000, transparent 85%); }
+      .fallback-copy { position: relative; z-index: 1; width: min(76%, 900px); }
+      .fallback-kicker { margin: 0 0 18px; color: #9dc4ff; font: 600 clamp(10px, 1.2vw, 18px)/1.2 Consolas, monospace; letter-spacing: .22em; }
+      .fallback h1 { max-width: 760px; margin: 0; font-size: clamp(34px, 6vw, 90px); line-height: .92; letter-spacing: -.055em; }
+      .fallback h1 span { color: #9dc4ff; }
+      .fallback-status { display: flex; align-items: center; gap: 10px; margin-top: 24px; color: #8290a3; font: 500 clamp(10px, 1.1vw, 16px)/1.4 Consolas, monospace; }
+      .fallback-status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #4ae6a0; box-shadow: 0 0 18px rgba(74, 230, 160, .8); }
+      .fallback-orbit { position: absolute; right: 8%; width: min(28vw, 340px); aspect-ratio: 1; border: 2px solid rgba(244, 247, 251, .78); border-left-color: #6ba3ff; border-bottom-color: rgba(107, 163, 255, .24); border-radius: 50%; box-shadow: -22px 0 48px rgba(107, 163, 255, .18), 22px 0 44px rgba(245, 166, 35, .14), inset 0 0 58px #000; animation: orbit 8s ease-in-out infinite alternate; }
+      .fallback-orbit::after { content: ''; position: absolute; right: -14px; top: 50%; width: 30px; height: 2px; background: #fff; box-shadow: 0 0 12px #fff, 0 0 30px #f5a623; }
+      body.is-ready .fallback { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+      @keyframes orbit { to { transform: rotate(18deg) scale(1.025); } }
+      @media (prefers-reduced-motion: reduce) { .fallback-orbit { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="fallback" role="status" aria-label="Локальный предпросмотр композиции">
+      <div class="fallback-copy">
+        <p class="fallback-kicker">ECLIPSE FORGE / RELEASE SIGNAL</p>
+        <h1>Изменения должны быть <span>видны.</span></h1>
+        <div class="fallback-status">LOCAL PREVIEW / CDN-FREE FALLBACK</div>
+      </div>
+      <div class="fallback-orbit" aria-hidden="true"></div>
+    </div>
+    <iframe
+      id="composition"
+      title="Eclipse Release Signal"
+      src="index.html"
+      sandbox="allow-scripts allow-same-origin"
+      referrerpolicy="no-referrer"
+    ></iframe>
+    <script>
+      const frame = document.getElementById('composition');
+
+      frame.addEventListener('load', () => {
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const timeline = frame.contentWindow?.__timelines?.['eclipse-release-signal'];
+        if (!timeline) return;
+        document.body.classList.add('is-ready');
+        if (prefersReducedMotion) {
+          timeline.time(1.4, false);
+          return;
+        }
+        const startedAt = performance.now();
+        const duration = 15;
+        const tick = (now) => {
+          timeline.time(((now - startedAt) / 1000) % duration, false);
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    </script>
+  </body>
+</html>

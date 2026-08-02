@@ -1,0 +1,19 @@
+{
+  "name": "@eclipse-media/release-video",
+  "private": true,
+  "version": "0.2.0",
+  "hyperframes": {
+    "package": "@hyperframes/cli",
+    "version": "0.7.88",
+    "sourceTag": "v0.7.88",
+    "sourceCommit": "74fadf69c464c0e0658bd7a6b740986fc3aceba8"
+  },
+  "scripts": {
+    "check": "node scripts/validate-template.mjs",
+    "hyperframes:lint": "node scripts/run-hyperframes.mjs lint index.html",
+    "hyperframes:validate": "node scripts/run-hyperframes.mjs validate index.html",
+    "verify": "npm run check && npm run hyperframes:lint && npm run hyperframes:validate",
+    "preview": "node scripts/run-hyperframes.mjs preview index.html",
+    "render": "node scripts/run-hyperframes.mjs render index.html --output renders/eclipse-release.mp4"
+  }
+}

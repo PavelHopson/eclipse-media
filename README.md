@@ -18,6 +18,8 @@
 - История загрузок (localStorage)
 - Авто-удаление файлов через 1 час (TTL)
 - Превью: thumbnail, название, длительность, автор
+- Отдельная release-video студия: брендовый template, browser preview и offline contract check;
+  HyperFrames lint/validate/render включаются только после exact CLI audit и lockfile
 
 ## Product radar
 
@@ -30,7 +32,37 @@
 | **Voicetypr / Audio Transcriber** | Локальная/веб-транскрибация: видео/аудио → transcript → summary → action clips |
 | **Sokuji** | Live translation / virtual microphone pattern для будущего режима “перевести ролик/созвон”; только consent-safe сценарии |
 | **ChatCut / MaxFusion / video-use** | Workflow benchmark: очистка речи, субтитры, motion inserts, variants, project memory. Не core dependency до API/privacy/pricing review |
+| **HyperFrames** | **P0 в работе:** готова HTML/GSAP-композиция `Eclipse Release Signal`, preview в UI и fail-closed local runner под официальный tag `v0.7.88`. CLI ещё не установлен: npm registry недоступен, package integrity/lockfile и реальный render остаются обязательным gate |
 | **Torlink** | Только reference для CLI UX, очередей загрузки и source health-check. Не превращать Eclipse Media в публичный downloader "любых файлов"; тестировать только legal/open-data сценарии |
+
+## Release-video pipeline
+
+Открой в приложении раздел **«Видео-студия»**. Основной путь виден сразу:
+
+1. Нажми **«Открыть предпросмотр»** и просмотри все пять сцен.
+2. Запусти offline contract check — он проверяет timing, exact GSAP SRI и отсутствие скрытого `npx`:
+
+```bash
+cd frontend/public/studio/eclipse-release
+npm run check
+```
+
+3. После восстановления npm registry проверь metadata/integrity пакета `@hyperframes/cli@0.7.88`,
+   добавь exact devDependency и commit `package-lock.json`. Затем выполни полный gate:
+
+```bash
+npm run verify
+npm run render
+```
+
+Файл появится в `frontend/public/studio/eclipse-release/renders/eclipse-release.mp4`.
+До появления проверенной локальной зависимости команды `verify` и `render` завершаются fail closed
+и ничего не скачивают. Для CLI нужны Node.js 22+ и FFmpeg. Публикация остаётся ручным действием
+после просмотра результата.
+
+Композиция не загружает runtime из CDN. Exact GSAP `3.14.2` хранится локально; SHA-256 и
+SHA-384 SRI проверяются offline, а байты сверены с официальным GitHub tag. GSAP использует
+отдельную GreenSock “no charge” license (не MIT/Apache); copyright header сохранён.
 
 ## Быстрый старт
 
