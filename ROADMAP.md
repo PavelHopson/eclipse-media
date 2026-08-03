@@ -1,6 +1,6 @@
 # Eclipse Media Roadmap
 
-Последнее обновление: **02.08.2026**
+Последнее обновление: **03.08.2026**
 
 ## P0
 
@@ -23,7 +23,7 @@
 - [ ] PR/roadmap -> storyboard draft через Eclipse Chat approval flow.
 - [ ] Asset library с provenance, consent и commercial-rights metadata.
 - [x] Добавить детерминированные 9:16 и 1:1 варианты release-template с общей Eclipse design system.
-- [ ] Разнести пять release-сцен по sub-compositions, чтобы упростить timeline diff и Studio editing.
+- [x] Разнести пять release-сцен по sub-compositions, чтобы упростить timeline diff и Studio editing.
 
 ## P2
 
@@ -31,6 +31,12 @@
 - [ ] Добавить transcript-first video understanding с timestamps и citations.
 
 ## Changelog
+
+### 2026-08-03
+
+- Пять release-сцен вынесены в самостоятельные HyperFrames sub-compositions с локальными paused
+  GSAP timelines. Host, internal и timeline IDs защищены cross-file contract test; format builder
+  создаёт согласованные 16:9, 9:16 и 1:1 scene variants без network/shell input.
 
 ### 2026-08-02
 

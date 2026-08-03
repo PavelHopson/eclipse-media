@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+  <head><meta charset="utf-8" /></head>
+  <body>
+    <template>
+      <style>
+        #root { --void: #030405; --ink: #f4f7fb; --muted: #8290a3; --signal: #6ba3ff; --signal-soft: #9dc4ff; --solar: #f5a623; }
+        * { box-sizing: border-box; }
+        #root { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(circle at 76% 32%, rgba(107, 163, 255, .12), transparent 31%), var(--void); box-shadow: inset 0 0 150px rgba(0, 0, 0, .9); color: var(--ink); font-family: 'Roboto', sans-serif; }
+        #root::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(107, 163, 255, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(107, 163, 255, .035) 1px, transparent 1px); background-size: 64px 64px; opacity: .6; }
+        .scene-content { position: absolute; inset: 0; display: grid; align-content: center; padding: 7vw; }
+        .hero-copy { max-width: 60vw; }
+        .eyebrow { margin: 0; color: var(--signal-soft); font: 600 19px/1.2 Consolas, monospace; letter-spacing: .24em; text-transform: uppercase; }
+        h1 { max-width: 1160px; margin: 28px 0 0; font-size: clamp(76px, 7.3vw, 140px); line-height: .9; letter-spacing: -.055em; }
+        .body { max-width: 900px; margin: 28px 0 0; color: var(--muted); font-size: 30px; line-height: 1.45; }
+        .accent { color: var(--signal-soft); }
+        .orbit { position: absolute; right: 8vw; top: 50%; width: 28vw; aspect-ratio: 1; border: 3px solid rgba(244, 247, 251, .82); border-left-color: var(--signal); border-bottom-color: rgba(107, 163, 255, .25); border-radius: 50%; box-shadow: -25px 0 55px rgba(107, 163, 255, .18), 26px 0 50px rgba(245, 166, 35, .16), inset 0 0 80px #000; transform: translateY(-50%); }
+        .orbit::after { content: ''; position: absolute; right: -24px; top: 50%; width: 50px; height: 3px; border-radius: 99px; background: #fff; box-shadow: 0 0 12px #fff, 0 0 35px var(--solar), 0 0 70px var(--solar); }
+        @media (max-aspect-ratio: 1 / 1) {
+          .scene-content { padding: 9vw 8vw; }
+          .hero-copy { max-width: 100%; }
+          h1 { max-width: 100%; font-size: clamp(68px, 10vw, 104px); }
+          .body { max-width: 100%; font-size: 25px; }
+          .orbit { right: 8vw; top: auto; bottom: 8vw; width: 42vw; transform: none; opacity: .55; }
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-signal" data-width="1920" data-height="1080" data-duration="3">
+        <div class="scene-content">
+          <div class="hero-copy">
+            <p class="eyebrow">Eclipse Forge / Release Signal</p>
+            <h1>Изменения должны быть <span class="accent">видны.</span></h1>
+            <p class="body">Не очередной changelog. Короткий сигнал о том, что команда уже может использовать.</p>
+          </div>
+          <div class="orbit" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          const root = '[data-composition-id="scene-signal"]';
+          const tl = gsap.timeline({ paused: true });
+          tl.fromTo(`${root} .eyebrow`, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: .55, ease: 'power3.out' }, .2);
+          tl.fromTo(`${root} h1`, { autoAlpha: 0, y: 50 }, { autoAlpha: 1, y: 0, duration: .75, ease: 'expo.out' }, .38);
+          tl.fromTo(`${root} .body`, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: .55, ease: 'power3.out' }, .72);
+          tl.fromTo(`${root} .orbit`, { autoAlpha: 0, scale: .82 }, { autoAlpha: 1, scale: 1, duration: .9, ease: 'expo.out' }, .28);
+          tl.to(`${root} .orbit`, { rotation: 22, scale: 1.025, duration: 1.76, ease: 'sine.inOut' }, 1.19);
+          tl.set(root, { autoAlpha: 0 }, 2.98);
+          window.__timelines = window.__timelines || {};
+          window.__timelines['scene-signal'] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

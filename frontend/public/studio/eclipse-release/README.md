@@ -15,8 +15,9 @@ npm run verify
 npm run render
 ```
 
-`verify` проверяет пять scene windows, общую длительность, SHA-256 и SRI локальной exact-копии
-GSAP, deterministic guards, runtime, layout, motion и WCAG contrast. `render` создаёт
+`verify` проверяет пять scene windows, cross-file mount contract, совпадение composition/timeline ID,
+общую длительность, SHA-256 и SRI локальной exact-копии GSAP, deterministic guards, runtime,
+layout, motion и WCAG contrast. `render` создаёт
 `renders/eclipse-release-16x9.mp4`.
 
 Дополнительные форматы используют ту же source composition и создаются детерминированно:
@@ -34,12 +35,16 @@ attestations и audit проверены перед фиксацией lockfile.
 
 ## Как менять ролик
 
-1. Обновите текст внутри нужной `.scene-content` в `index.html`.
-2. Если меняете длительность сцены, пересчитайте `data-start` следующих сцен и общий
+1. Обновите текст, стиль или локальный timeline в нужном файле `compositions/scene-*.html`.
+2. Не переносите `<style>`, markup или `<script>` за пределы `<template>`: HyperFrames монтирует
+   только содержимое template.
+3. Если меняете ID сцены, синхронно обновите `data-composition-id` host-слота в `index.html`,
+   внутренний `data-composition-id` и ключ `window.__timelines[...]`.
+4. Если меняете длительность сцены, пересчитайте `data-start` следующих host-слотов и общий
    `data-duration` у `#stage`.
-3. Для новых анимаций используйте только paused GSAP timeline `window.__timelines`.
-4. Не используйте `Date.now()`, `Math.random()`, `repeat: -1` или wall-clock logic.
-5. После каждой правки выполняйте `npm run verify`, затем смотрите preview и готовый render целиком.
+5. Для входов используйте `gsap.fromTo()`, чтобы seek назад оставался детерминированным.
+6. Не используйте `Date.now()`, `Math.random()`, `repeat: -1` или wall-clock logic.
+7. После каждой правки выполняйте `npm run verify`, затем смотрите preview и готовый render целиком.
 
 Публикация не автоматизирована: готовый MP4 сначала проверяется человеком и только потом
 прикрепляется в Eclipse Chat или публикуется на landing/social channels.
@@ -65,6 +70,7 @@ npm run render:vertical  # 1080x1920
 npm run render:square    # 1080x1080
 ```
 
-Перед render фиксированный скрипт создаёт variant в ignored-папке `generated/`. Размеры и
-composition id читаются только из `package.json`; пользовательский путь или shell-команда не
-принимаются. Результат всё равно нужно просмотреть и подтвердить вручную перед публикацией.
+Перед render фиксированный скрипт создаёт host variant и пять согласованных sub-compositions в
+ignored-папке `generated/`. Размеры и composition id читаются только из `package.json`;
+пользовательский путь или shell-команда не принимаются. Результат всё равно нужно просмотреть и
+подтвердить вручную перед публикацией.

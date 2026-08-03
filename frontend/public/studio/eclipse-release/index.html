@@ -10,170 +10,78 @@
       crossorigin="anonymous"
     ></script>
     <style>
-      :root {
-        --void: #030405;
-        --surface: #091018;
-        --ink: #f4f7fb;
-        --muted: #8290a3;
-        --signal: #6ba3ff;
-        --signal-soft: #9dc4ff;
-        --solar: #f5a623;
-        --success: #4ae6a0;
-      }
       * { box-sizing: border-box; }
-      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--void); color: var(--ink); font-family: 'Roboto', sans-serif; }
-      #stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: radial-gradient(circle at 76% 32%, rgba(107, 163, 255, .12), transparent 31%), var(--void); box-shadow: inset 0 0 150px rgba(0, 0, 0, .9); }
-      #stage::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(107, 163, 255, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(107, 163, 255, .035) 1px, transparent 1px); background-size: 64px 64px; opacity: .6; }
-      .scene { position: absolute; inset: 0; visibility: hidden; opacity: 0; }
-      .scene-content { position: absolute; inset: 0; display: grid; align-content: center; padding: 7vw; }
-      .eyebrow { color: var(--signal-soft); font: 600 19px/1.2 Consolas, monospace; letter-spacing: .24em; text-transform: uppercase; }
-      h1, h2, p { margin: 0; }
-      h1 { max-width: 1160px; margin-top: 28px; font-size: clamp(76px, 7.3vw, 140px); line-height: .9; letter-spacing: -.055em; }
-      h2 { max-width: 1180px; margin-top: 25px; font-size: clamp(62px, 6vw, 112px); line-height: .95; letter-spacing: -.045em; }
-      .body { max-width: 900px; margin-top: 28px; color: var(--muted); font-size: 30px; line-height: 1.45; }
-      .accent { color: var(--signal-soft); }
-      .solar { color: var(--solar); }
-      .orbit { position: absolute; right: 8vw; top: 50%; width: 28vw; aspect-ratio: 1; border: 3px solid rgba(244, 247, 251, .82); border-left-color: var(--signal); border-bottom-color: rgba(107, 163, 255, .25); border-radius: 50%; box-shadow: -25px 0 55px rgba(107, 163, 255, .18), 26px 0 50px rgba(245, 166, 35, .16), inset 0 0 80px #000; transform: translateY(-50%); }
-      .orbit::after { content: ''; position: absolute; right: -24px; top: 50%; width: 50px; height: 3px; border-radius: 99px; background: #fff; box-shadow: 0 0 12px #fff, 0 0 35px var(--solar), 0 0 70px var(--solar); }
-      .hero-copy { max-width: 60vw; }
-      .source-row { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 48px; }
-      .source-pill { padding: 18px 25px; border: 1px solid rgba(157, 196, 255, .25); border-radius: 12px; background: rgba(107, 163, 255, .07); color: #d9e7ff; font: 600 22px Consolas, monospace; }
-      .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; width: 100%; margin-top: 64px; }
-      .pipeline-step { position: relative; min-height: 165px; padding: 28px; border: 1px solid rgba(107, 163, 255, .18); border-radius: 16px; background: linear-gradient(145deg, rgba(14, 25, 37, .95), rgba(7, 11, 17, .96)); }
-      .pipeline-step:not(:last-child)::after { content: ''; position: absolute; top: 50%; right: -21px; width: 21px; height: 1px; background: linear-gradient(90deg, var(--signal), transparent); }
-      .pipeline-step span { color: var(--signal); font: 500 18px Consolas, monospace; }
-      .pipeline-step strong { display: block; margin-top: 36px; font-size: 28px; }
-      .quality-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 60px; }
-      .quality-card { padding: 34px; border-top: 2px solid var(--signal); background: linear-gradient(180deg, rgba(107, 163, 255, .08), rgba(8, 13, 20, .8)); }
-      .quality-card:nth-child(2) { border-color: var(--success); }
-      .quality-card:nth-child(3) { border-color: var(--solar); }
-      .quality-card strong { display: block; font-size: 34px; }
-      .quality-card p { margin-top: 14px; color: var(--muted); font-size: 21px; line-height: 1.4; }
-      .closing { text-align: center; place-items: center; }
-      .closing h2 { max-width: 1400px; font-size: clamp(84px, 8vw, 154px); }
-      .closing-line { width: 360px; height: 2px; margin-top: 50px; background: linear-gradient(90deg, transparent, var(--signal), var(--solar), transparent); box-shadow: 0 0 25px rgba(107, 163, 255, .5); }
-      .telemetry { position: absolute; right: 4vw; bottom: 3vw; color: #657791; font: 16px Consolas, monospace; letter-spacing: .14em; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #030405; }
+      #stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #030405; }
+      .scene-slot { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .telemetry { position: absolute; z-index: 10; right: 4vw; bottom: 3vw; color: #657791; font: 16px Consolas, monospace; letter-spacing: .14em; }
       @media (max-aspect-ratio: 1 / 1) {
-        .scene-content { align-content: center; padding: 9vw 8vw; }
-        .hero-copy { max-width: 100%; }
-        h1 { max-width: 100%; font-size: clamp(68px, 10vw, 104px); }
-        h2 { max-width: 100%; font-size: clamp(58px, 8.2vw, 88px); }
-        .body { max-width: 100%; font-size: 25px; }
-        .orbit { right: 8vw; top: auto; bottom: 8vw; width: 42vw; transform: none; opacity: .55; }
-        .source-row { gap: 12px; margin-top: 34px; }
-        .source-pill { padding: 14px 18px; font-size: 18px; }
-        .pipeline { grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 38px; }
-        .pipeline-step { min-height: 132px; padding: 22px; }
-        .pipeline-step:not(:last-child)::after { display: none; }
-        .pipeline-step strong { margin-top: 24px; font-size: 25px; }
-        .quality-grid { grid-template-columns: 1fr; gap: 12px; margin-top: 34px; }
-        .quality-card { padding: 22px; }
-        .quality-card strong { font-size: 27px; }
-        .quality-card p { margin-top: 8px; font-size: 18px; }
-        .closing h2 { font-size: clamp(72px, 11vw, 118px); }
+        .telemetry { right: 5vw; bottom: 4vw; font-size: 13px; }
       }
     </style>
   </head>
   <body>
     <div id="stage" data-composition-id="eclipse-release-signal" data-start="0" data-duration="15" data-width="1920" data-height="1080">
-      <section id="scene-signal" class="scene clip" data-start="0" data-duration="3" data-track-index="0">
-        <div class="scene-content">
-          <div class="hero-copy">
-            <p class="eyebrow">Eclipse Forge / Release Signal</p>
-            <h1>Изменения должны быть <span class="accent">видны.</span></h1>
-            <p class="body">Не очередной changelog. Короткий сигнал о том, что команда уже может использовать.</p>
-          </div>
-          <div class="orbit" aria-hidden="true"></div>
-        </div>
-      </section>
-
-      <section id="scene-inputs" class="scene clip" data-start="3" data-duration="3" data-track-index="0">
-        <div class="scene-content">
-          <p class="eyebrow">01 / Trusted inputs</p>
-          <h2>Берём только то, что можно <span class="accent">проверить.</span></h2>
-          <div class="source-row">
-            <span class="source-pill">PULL REQUEST</span>
-            <span class="source-pill">ROADMAP</span>
-            <span class="source-pill">CONFIRMED MEMORY</span>
-            <span class="source-pill">TEST RESULT</span>
-          </div>
-        </div>
-      </section>
-
-      <section id="scene-pipeline" class="scene clip" data-start="6" data-duration="3" data-track-index="0">
-        <div class="scene-content">
-          <p class="eyebrow">02 / Operational motion</p>
-          <h2>Сигнал проходит понятный pipeline.</h2>
-          <div class="pipeline">
-            <div class="pipeline-step"><span>01</span><strong>Extract</strong></div>
-            <div class="pipeline-step"><span>02</span><strong>Compose</strong></div>
-            <div class="pipeline-step"><span>03</span><strong>Validate</strong></div>
-            <div class="pipeline-step"><span>04</span><strong>Render</strong></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="scene-quality" class="scene clip" data-start="9" data-duration="3" data-track-index="0">
-        <div class="scene-content">
-          <p class="eyebrow">03 / Quality gate</p>
-          <h2>Креатив не отменяет <span class="solar">контроль.</span></h2>
-          <div class="quality-grid">
-            <div class="quality-card"><strong>Deterministic</strong><p>Одинаковые входы дают одинаковые кадры.</p></div>
-            <div class="quality-card"><strong>Validated</strong><p>Lint и runtime check до тяжёлого render.</p></div>
-            <div class="quality-card"><strong>Reviewed</strong><p>Публикация только после просмотра человеком.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="scene-close" class="scene clip" data-start="12" data-duration="3" data-track-index="0">
-        <div class="scene-content closing">
-          <p class="eyebrow">Eclipse Media</p>
-          <h2>Render. Review. <span class="accent">Ship.</span></h2>
-          <div class="closing-line" aria-hidden="true"></div>
-        </div>
-      </section>
+      <div
+        id="scene-signal-slot"
+        class="scene-slot"
+        data-composition-id="scene-signal"
+        data-composition-src="compositions/scene-signal.html"
+        data-start="0"
+        data-duration="3"
+        data-track-index="0"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="scene-inputs-slot"
+        class="scene-slot"
+        data-composition-id="scene-inputs"
+        data-composition-src="compositions/scene-inputs.html"
+        data-start="3"
+        data-duration="3"
+        data-track-index="0"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="scene-pipeline-slot"
+        class="scene-slot"
+        data-composition-id="scene-pipeline"
+        data-composition-src="compositions/scene-pipeline.html"
+        data-start="6"
+        data-duration="3"
+        data-track-index="0"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="scene-quality-slot"
+        class="scene-slot"
+        data-composition-id="scene-quality"
+        data-composition-src="compositions/scene-quality.html"
+        data-start="9"
+        data-duration="3"
+        data-track-index="0"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+      <div
+        id="scene-close-slot"
+        class="scene-slot"
+        data-composition-id="scene-close"
+        data-composition-src="compositions/scene-close.html"
+        data-start="12"
+        data-duration="3"
+        data-track-index="0"
+        data-width="1920"
+        data-height="1080"
+      ></div>
       <div class="telemetry">15.0 SEC / 1920 × 1080 / LOCAL</div>
     </div>
 
     <script>
       const tl = gsap.timeline({ paused: true });
-
-      tl.set('#scene-signal', { autoAlpha: 1 }, 0);
-      tl.from('#scene-signal .eyebrow', { autoAlpha: 0, y: 24, duration: .55, ease: 'power3.out' }, .2);
-      tl.from('#scene-signal h1', { autoAlpha: 0, y: 50, duration: .75, ease: 'expo.out' }, .38);
-      tl.from('#scene-signal .body', { autoAlpha: 0, y: 24, duration: .55, ease: 'power3.out' }, .72);
-      tl.from('#scene-signal .orbit', { autoAlpha: 0, scale: .82, duration: .9, ease: 'expo.out' }, .28);
-      tl.to('#scene-signal .orbit', { rotation: 22, scale: 1.025, duration: 1.76, ease: 'sine.inOut' }, 1.19);
-      tl.set('#scene-signal', { autoAlpha: 0 }, 2.98);
-
-      tl.set('#scene-inputs', { autoAlpha: 1 }, 3);
-      tl.from('#scene-inputs .eyebrow', { autoAlpha: 0, x: -25, duration: .5, ease: 'power3.out' }, 3.18);
-      tl.from('#scene-inputs h2', { autoAlpha: 0, y: 38, duration: .7, ease: 'expo.out' }, 3.32);
-      tl.from('#scene-inputs .source-pill', { autoAlpha: 0, y: 28, stagger: .11, duration: .5, ease: 'back.out(1.35)' }, 3.72);
-      tl.to('#scene-inputs .source-row', { x: 16, duration: 2.2, ease: 'sine.inOut' }, 3.7);
-      tl.set('#scene-inputs', { autoAlpha: 0 }, 5.98);
-
-      tl.set('#scene-pipeline', { autoAlpha: 1 }, 6);
-      tl.from('#scene-pipeline .eyebrow', { autoAlpha: 0, y: 20, duration: .45, ease: 'power3.out' }, 6.16);
-      tl.from('#scene-pipeline h2', { autoAlpha: 0, y: 36, duration: .65, ease: 'expo.out' }, 6.3);
-      tl.from('#scene-pipeline .pipeline-step', { autoAlpha: 0, x: -40, stagger: .12, duration: .55, ease: 'power3.out' }, 6.65);
-      tl.to('#scene-pipeline .pipeline-step', { y: -8, stagger: .09, duration: 1.5, ease: 'sine.inOut' }, 7.2);
-      tl.set('#scene-pipeline', { autoAlpha: 0 }, 8.98);
-
-      tl.set('#scene-quality', { autoAlpha: 1 }, 9);
-      tl.from('#scene-quality .eyebrow', { autoAlpha: 0, y: 20, duration: .45, ease: 'power3.out' }, 9.16);
-      tl.from('#scene-quality h2', { autoAlpha: 0, y: 36, duration: .65, ease: 'expo.out' }, 9.3);
-      tl.from('#scene-quality .quality-card', { autoAlpha: 0, scale: .94, stagger: .14, duration: .55, ease: 'back.out(1.3)' }, 9.68);
-      tl.to('#scene-quality .quality-card', { borderTopWidth: 6, stagger: .12, duration: 1.2, ease: 'sine.inOut' }, 10.25);
-      tl.set('#scene-quality', { autoAlpha: 0 }, 11.98);
-
-      tl.set('#scene-close', { autoAlpha: 1 }, 12);
-      tl.from('#scene-close .eyebrow', { autoAlpha: 0, y: 20, duration: .45, ease: 'power3.out' }, 12.18);
-      tl.from('#scene-close h2', { autoAlpha: 0, scale: .94, duration: .8, ease: 'expo.out' }, 12.32);
-      tl.from('#scene-close .closing-line', { autoAlpha: 0, scaleX: 0, duration: .8, ease: 'power3.out' }, 12.76);
-      tl.to('#scene-close h2', { scale: 1.025, duration: 1.49, ease: 'sine.inOut' }, 13.13);
-      tl.to('#scene-close', { autoAlpha: 0, duration: .35, ease: 'power2.in' }, 14.62);
-
       window.__timelines = window.__timelines || {};
       window.__timelines['eclipse-release-signal'] = tl;
     </script>
