@@ -4,6 +4,8 @@ import { fetchTranscript, TranscriptResult } from '../api/media';
 interface Props {
   url: string;
   title: string;
+  rightsConfirmed: boolean;
+  onComplete?: () => void;
   onClose: () => void;
 }
 
@@ -20,7 +22,7 @@ const LANGUAGES = [
   { code: 'ko', label: 'KO' },
 ];
 
-export function TranscriptModal({ url, title, onClose }: Props) {
+export function TranscriptModal({ url, title, rightsConfirmed, onComplete, onClose }: Props) {
   const [lang, setLang] = useState('auto');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TranscriptResult | null>(null);
@@ -43,8 +45,9 @@ export function TranscriptModal({ url, title, onClose }: Props) {
     setError(null);
     setResult(null);
     try {
-      const data = await fetchTranscript(url, selectedLang);
+      const data = await fetchTranscript(url, selectedLang, rightsConfirmed);
       setResult(data);
+      onComplete?.();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Ошибка получения транскрипта');
     } finally {
@@ -102,6 +105,9 @@ export function TranscriptModal({ url, title, onClose }: Props) {
     >
       <div
         className="w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="transcript-title"
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
@@ -115,7 +121,7 @@ export function TranscriptModal({ url, title, onClose }: Props) {
         >
           <span className="text-lg">📄</span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+            <p id="transcript-title" className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
               Транскрипт
             </p>
             <p className="text-xs truncate" style={{ color: 'var(--text-dim)' }}>
@@ -124,6 +130,7 @@ export function TranscriptModal({ url, title, onClose }: Props) {
           </div>
           <button
             onClick={onClose}
+            aria-label="Закрыть транскрипт"
             className="text-xl leading-none opacity-40 hover:opacity-80 transition-opacity flex-shrink-0"
             style={{ color: 'var(--text-dim)' }}
           >

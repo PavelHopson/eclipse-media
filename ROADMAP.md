@@ -1,9 +1,12 @@
 # Eclipse Media Roadmap
 
-Последнее обновление: **03.08.2026**
+Последнее обновление: **05.08.2026**
 
 ## P0
 
+- [x] Добавить Media Intake: четыре понятных результата, project context, заметки и локальную очередь.
+- [x] Добавить rights gate, public URL/proxy validation, максимум три активные задачи и process cancellation.
+- [x] Закрепить `yt-dlp==2026.3.17`; remote EJS components сделать opt-in, а CI actions — SHA-pinned.
 - [x] Добавить HyperFrames-ready release-video workspace с browser preview и offline contract check.
 - [x] Вынести видео-студию в отдельный понятный режим web UI и адаптировать desktop/mobile layout.
 - [x] Добавить CDN-free fallback, чтобы preview не превращался в чёрный экран при сетевом сбое.
@@ -20,6 +23,8 @@
 
 ## P1
 
+- [ ] Добавить server-side request queue с пользователями, ролями и audit trail; текущая очередь local-only.
+- [ ] Добавить container egress policy и redirect-aware network isolation поверх application SSRF checks.
 - [ ] PR/roadmap -> storyboard draft через Eclipse Chat approval flow.
 - [ ] Asset library с provenance, consent и commercial-rights metadata.
 - [x] Добавить детерминированные 9:16 и 1:1 варианты release-template с общей Eclipse design system.
@@ -31,6 +36,17 @@
 - [ ] Добавить transcript-first video understanding с timestamps и citations.
 
 ## Changelog
+
+### 2026-08-05
+
+- Добавлен clean-room Media Intake по полезным UX-паттернам YTSage/Reiverr: watch/video/audio/transcript,
+  project context, заметки, local queue, понятные статусы и одно следующее действие без автономной публикации.
+- Скачивание и транскрипция теперь требуют явного rights confirmation на frontend и backend.
+  HTTP(S)/proxy validation блокирует credentials, localhost, private/link-local/metadata destinations;
+  job IDs используют полный UUID, concurrency ограничена тремя задачами, удаление останавливает процесс.
+- Supply-chain boundary усилена: `yt-dlp` закреплён exact version, remote EJS runtime выключен по
+  умолчанию, CI actions закреплены по commit SHA и backend regression tests включены в обязательный gate.
+- Внешний Google Fonts import удалён: UI использует локальный системный font stack без third-party request.
 
 ### 2026-08-03
 

@@ -68,6 +68,7 @@ export async function startDownload(params: {
   audio_format?: string;
   audio_quality?: string;
   proxy?: string;
+  rights_confirmed: boolean;
 }): Promise<string> {
   const res = await apiFetch<{ ok: boolean; data: { job_id: string } }>('/download', {
     method: 'POST',
@@ -134,10 +135,10 @@ export interface TranscriptResult {
   segments: TranscriptSegment[];
 }
 
-export async function fetchTranscript(url: string, lang = 'auto'): Promise<TranscriptResult> {
+export async function fetchTranscript(url: string, lang = 'auto', rightsConfirmed = false): Promise<TranscriptResult> {
   const res = await apiFetch<{ ok: boolean; data: TranscriptResult }>('/transcript', {
     method: 'POST',
-    body: JSON.stringify({ url, lang }),
+    body: JSON.stringify({ url, lang, rights_confirmed: rightsConfirmed }),
   });
   return res.data;
 }

@@ -12,8 +12,11 @@ import subprocess
 import threading
 import time
 import re
+import ipaddress
+import socket
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +40,17 @@ except (FileNotFoundError, subprocess.TimeoutExpired):
 FILE_TTL_SECONDS = 3600  # файлы живут 1 час
 
 jobs: dict[str, dict] = {}
+jobs_lock = threading.Lock()
+MAX_ACTIVE_JOBS = 3
+MAX_URL_LENGTH = 2048
+BLOCKED_HOST_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".home.arpa")
+BLOCKED_HOSTS = {
+    "localhost",
+    "metadata",
+    "metadata.google.internal",
+    "instance-data",
+    "169.254.169.254",
+}
 
 
 # ─── Cleanup background task ──────────────────────────────────────────────────
@@ -46,19 +60,22 @@ def cleanup_loop():
     while True:
         time.sleep(300)
         now = time.time()
-        expired = [
-            jid for jid, j in list(jobs.items())
-            if j.get("created_at", now) < now - FILE_TTL_SECONDS
-        ]
-        for jid in expired:
-            job = jobs.pop(jid, None)
-            if job:
-                fpath = job.get("file")
-                if fpath and os.path.exists(fpath):
-                    try:
-                        os.remove(fpath)
-                    except OSError:
-                        pass
+        with jobs_lock:
+            expired = [
+                jid for jid, job in jobs.items()
+                if job.get("created_at", now) < now - FILE_TTL_SECONDS
+            ]
+            expired_jobs = [jobs.pop(jid) for jid in expired]
+        for job in expired_jobs:
+            process = job.get("process")
+            if process and process.poll() is None:
+                process.kill()
+            fpath = job.get("file")
+            if fpath and os.path.exists(fpath):
+                try:
+                    os.remove(fpath)
+                except OSError:
+                    pass
 
 
 @asynccontextmanager
@@ -70,7 +87,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,17 +111,100 @@ class DownloadRequest(BaseModel):
     audio_format: str = "mp3"    # "mp3" | "flac" | "opus" | "m4a" | "wav"
     audio_quality: str = "best"  # "best" | "320" | "192" | "128"
     proxy: str | None = None     # "socks5://host:port" | "http://host:port"
+    rights_confirmed: bool = False
 
 class TranscriptRequest(BaseModel):
     url: str
     lang: str = "auto"
     proxy: str | None = None
+    rights_confirmed: bool = False
 
 class ProxyTestRequest(BaseModel):
     proxy: str
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def _is_public_ip(value: str) -> bool:
+    try:
+        return ipaddress.ip_address(value).is_global
+    except ValueError:
+        return False
+
+
+def _validate_public_host(hostname: str) -> None:
+    host = hostname.rstrip(".").lower()
+    if not host or host in BLOCKED_HOSTS or host.endswith(BLOCKED_HOST_SUFFIXES):
+        raise HTTPException(400, "Локальные и служебные адреса запрещены")
+
+    try:
+        parsed_ip = ipaddress.ip_address(host)
+    except ValueError:
+        if not re.fullmatch(r"[a-z0-9.-]+", host) or ".." in host:
+            raise HTTPException(400, "Некорректный адрес сайта")
+        try:
+            addresses = {item[4][0] for item in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)}
+        except socket.gaierror:
+            raise HTTPException(400, "Не удалось определить адрес сайта")
+        if not addresses or any(not _is_public_ip(address) for address in addresses):
+            raise HTTPException(400, "Адрес сайта ведёт во внутреннюю сеть")
+    else:
+        if not parsed_ip.is_global:
+            raise HTTPException(400, "Внутренние IP-адреса запрещены")
+
+
+def validate_media_url(raw_url: str) -> str:
+    url = raw_url.strip()
+    if not url:
+        raise HTTPException(400, "URL не указан")
+    if len(url) > MAX_URL_LENGTH:
+        raise HTTPException(400, "URL слишком длинный")
+
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError:
+        raise HTTPException(400, "Некорректный URL")
+
+    if parsed.scheme.lower() not in {"http", "https"}:
+        raise HTTPException(400, "Разрешены только HTTP и HTTPS ссылки")
+    if parsed.username or parsed.password:
+        raise HTTPException(400, "Ссылки с логином или паролем запрещены")
+    if not parsed.hostname:
+        raise HTTPException(400, "В ссылке не указан сайт")
+    if port is not None and not 1 <= port <= 65535:
+        raise HTTPException(400, "Некорректный порт")
+
+    _validate_public_host(parsed.hostname)
+    clean_netloc = parsed.hostname.lower()
+    if ":" in clean_netloc:
+        clean_netloc = f"[{clean_netloc}]"
+    if port is not None:
+        clean_netloc = f"{clean_netloc}:{port}"
+    return urlunsplit((parsed.scheme.lower(), clean_netloc, parsed.path or "/", parsed.query, ""))
+
+
+def validate_proxy_url(raw_proxy: str | None) -> str | None:
+    if not raw_proxy or not raw_proxy.strip():
+        return None
+    proxy = raw_proxy.strip()
+    if len(proxy) > 512:
+        raise HTTPException(400, "Адрес proxy слишком длинный")
+    try:
+        parsed = urlsplit(proxy)
+        port = parsed.port
+    except ValueError:
+        raise HTTPException(400, "Некорректный адрес proxy")
+    if parsed.scheme.lower() not in {"http", "https", "socks5", "socks5h"}:
+        raise HTTPException(400, "Поддерживаются HTTP, HTTPS и SOCKS5 proxy")
+    if parsed.username or parsed.password:
+        raise HTTPException(400, "Передавайте proxy без логина и пароля")
+    if not parsed.hostname or port is None:
+        raise HTTPException(400, "Для proxy нужны адрес и порт")
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        raise HTTPException(400, "В адресе proxy не должно быть path, query или fragment")
+    _validate_public_host(parsed.hostname)
+    return proxy
 
 def parse_srt(content: str) -> list[dict]:
     """
@@ -161,9 +261,10 @@ def srt_to_plain_text(segments: list[dict]) -> str:
 
 
 def _ytdlp_base(proxy: str | None = None) -> list[str]:
-    """Base yt-dlp flags: JS runtime + optional proxy."""
-    cmd = ["yt-dlp", "--no-playlist", "--no-warnings",
-           "--js-runtimes", "node", "--remote-components", "ejs:github"]
+    """Base yt-dlp flags. Runtime network code is opt-in, never implicit."""
+    cmd = ["yt-dlp", "--no-playlist", "--no-warnings", "--js-runtimes", "node"]
+    if os.getenv("ECLIPSE_MEDIA_ALLOW_REMOTE_COMPONENTS", "").lower() in {"1", "true", "yes"}:
+        cmd += ["--remote-components", "ejs:github"]
     if proxy and proxy.strip():
         cmd += ["--proxy", proxy.strip()]
     return cmd
@@ -203,13 +304,14 @@ def parse_progress_line(line: str) -> dict | None:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.1.0"}
+    return {"ok": True, "version": "1.2.0"}
 
 
 @app.post("/api/proxy-test")
 def proxy_test(req: ProxyTestRequest):
     """Test if proxy works by fetching YouTube homepage."""
-    cmd = _ytdlp_base(req.proxy) + ["--simulate", "--print", "title",
+    proxy = validate_proxy_url(req.proxy)
+    cmd = _ytdlp_base(proxy) + ["--simulate", "--print", "title",
                                       "https://www.youtube.com/watch?v=jNQXAC9IVRw"]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -218,17 +320,16 @@ def proxy_test(req: ProxyTestRequest):
         return {"ok": False, "message": result.stderr.strip()[:200] or "Ошибка подключения"}
     except subprocess.TimeoutExpired:
         return {"ok": False, "message": "Таймаут — прокси не отвечает"}
-    except Exception as e:
-        return {"ok": False, "message": str(e)}
+    except Exception:
+        return {"ok": False, "message": "Не удалось проверить proxy"}
 
 
 @app.post("/api/info")
 def get_info(req: InfoRequest):
-    url = req.url.strip()
-    if not url:
-        raise HTTPException(400, "URL не указан")
+    url = validate_media_url(req.url)
+    proxy = validate_proxy_url(req.proxy)
 
-    cmd = _ytdlp_base(req.proxy) + ["-j", url]
+    cmd = _ytdlp_base(proxy) + ["-j", url]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     except subprocess.TimeoutExpired:
@@ -275,28 +376,42 @@ def get_info(req: InfoRequest):
 
 @app.post("/api/download")
 def start_download(req: DownloadRequest):
-    url = req.url.strip()
-    if not url:
-        raise HTTPException(400, "URL не указан")
+    if not req.rights_confirmed:
+        raise HTTPException(403, "Подтвердите право на скачивание материала")
+    url = validate_media_url(req.url)
+    proxy = validate_proxy_url(req.proxy)
+    if req.format not in {"video", "audio"}:
+        raise HTTPException(400, "Неизвестный формат загрузки")
+    if req.format_id and not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", req.format_id):
+        raise HTTPException(400, "Некорректный ID формата")
+    if req.audio_format not in AUDIO_FORMAT_EXT or req.audio_quality not in {"best", "320", "192", "128"}:
+        raise HTTPException(400, "Некорректные настройки аудио")
+    if len(req.title) > 300:
+        raise HTTPException(400, "Название слишком длинное")
 
-    job_id = uuid.uuid4().hex[:12]
-    jobs[job_id] = {
-        "status": "downloading",
-        "url": url,
-        "title": req.title,
-        "created_at": time.time(),
-        "progress": 0.0,
-        "speed": "",
-        "eta": "",
-        "file": None,
-        "filename": None,
-        "error": None,
-    }
+    job_id = uuid.uuid4().hex
+    with jobs_lock:
+        active_jobs = sum(1 for job in jobs.values() if job.get("status") == "downloading")
+        if active_jobs >= MAX_ACTIVE_JOBS:
+            raise HTTPException(429, "Одновременно можно выполнять не более трёх загрузок")
+        jobs[job_id] = {
+            "status": "downloading",
+            "url": url,
+            "title": req.title,
+            "created_at": time.time(),
+            "progress": 0.0,
+            "speed": "",
+            "eta": "",
+            "file": None,
+            "filename": None,
+            "error": None,
+            "process": None,
+        }
 
     thread = threading.Thread(
         target=_run_download,
         args=(job_id, url, req.format, req.format_id, req.title,
-              req.audio_format, req.audio_quality, req.proxy),
+              req.audio_format, req.audio_quality, proxy),
         daemon=True,
     )
     thread.start()
@@ -325,7 +440,10 @@ def _build_audio_quality_flags(audio_fmt: str, quality: str) -> list[str]:
 def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title: str,
                   audio_fmt: str = "mp3", audio_quality: str = "best",
                   proxy: str | None = None):
-    job = jobs[job_id]
+    with jobs_lock:
+        job = jobs.get(job_id)
+    if not job:
+        return
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
     cmd = _ytdlp_base(proxy) + ["-o", out_template]
@@ -349,6 +467,11 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
             text=True,
             bufsize=1,
         )
+        with jobs_lock:
+            if jobs.get(job_id) is not job:
+                proc.kill()
+                return
+            job["process"] = proc
 
         for line in proc.stdout:  # type: ignore[union-attr]
             parsed = parse_progress_line(line)
@@ -369,9 +492,9 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
         job["status"] = "error"
         job["error"] = "Превышено время загрузки (5 мин)"
         return
-    except Exception as e:
+    except Exception:
         job["status"] = "error"
-        job["error"] = str(e)
+        job["error"] = "Не удалось запустить обработку медиа"
         return
 
     files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
@@ -460,6 +583,7 @@ def get_file(job_id: str):
         job["file"],
         filename=job["filename"],
         media_type="application/octet-stream",
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
     )
 
 
@@ -474,9 +598,12 @@ def get_transcript(req: TranscriptRequest):
     3. Если lang="auto" — берём первый доступный язык (приоритет: en, ru, затем любой)
     4. Парсим SRT в чистый текст + сегменты с временными метками
     """
-    url = req.url.strip()
-    if not url:
-        raise HTTPException(400, "URL не указан")
+    if not req.rights_confirmed:
+        raise HTTPException(403, "Подтвердите право на обработку материала")
+    url = validate_media_url(req.url)
+    proxy = validate_proxy_url(req.proxy)
+    if not re.fullmatch(r"(?:auto|[A-Za-z0-9._-]{1,20})", req.lang):
+        raise HTTPException(400, "Некорректный код языка")
 
     import tempfile
 
@@ -484,7 +611,7 @@ def get_transcript(req: TranscriptRequest):
         out_template = os.path.join(tmpdir, "sub")
 
         # Шаг 1: получаем метаданные + список доступных субтитров
-        info_cmd = _ytdlp_base(req.proxy) + ["-j", url]
+        info_cmd = _ytdlp_base(proxy) + ["-j", url]
         try:
             info_result = subprocess.run(info_cmd, capture_output=True, text=True, timeout=60)
         except subprocess.TimeoutExpired:
@@ -528,7 +655,7 @@ def get_transcript(req: TranscriptRequest):
             raise HTTPException(404, "Субтитры недоступны для этого видео")
 
         # Шаг 2: скачиваем только субтитры нужного языка
-        dl_cmd = _ytdlp_base(req.proxy) + [
+        dl_cmd = _ytdlp_base(proxy) + [
             "--skip-download",
             "--convert-subs", "srt",
             "--sub-langs", chosen_lang,
@@ -581,8 +708,12 @@ def get_transcript(req: TranscriptRequest):
 
 @app.delete("/api/job/{job_id}")
 def delete_job(job_id: str):
-    job = jobs.pop(job_id, None)
+    with jobs_lock:
+        job = jobs.pop(job_id, None)
     if job:
+        process = job.get("process")
+        if process and process.poll() is None:
+            process.kill()
         fpath = job.get("file")
         if fpath and os.path.exists(fpath):
             try:

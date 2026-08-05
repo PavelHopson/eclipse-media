@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AudioFormat, AudioQuality, DownloadItem, useDownloads } from '../store/downloads';
-import { fetchInfo, startDownload, subscribeProgress, getFileUrl, formatDuration } from '../api/media';
+import { deleteJob, fetchInfo, startDownload, subscribeProgress, getFileUrl, formatDuration } from '../api/media';
 import { TranscriptModal } from './TranscriptModal';
 
 const AUDIO_FORMATS: { value: AudioFormat; label: string; lossless?: boolean }[] = [
@@ -35,8 +35,9 @@ export function VideoCard({ item }: Props) {
   }
 
   async function handleDownload() {
-    if (!item.info) return;
+    if (!item.info || !item.rightsConfirmed) return;
     store.setStatus(item.id, 'downloading');
+    if (item.requestId) store.setRequestStatus(item.requestId, 'in_progress');
     try {
       const jobId = await startDownload({
         url: item.url, format: item.format,
@@ -45,15 +46,17 @@ export function VideoCard({ item }: Props) {
         audio_format: item.format === 'audio' ? item.audioFormat : undefined,
         audio_quality: item.format === 'audio' ? item.audioQuality : undefined,
         proxy: store.proxy || undefined,
+        rights_confirmed: item.rightsConfirmed,
       });
       store.setJobId(item.id, jobId);
       const unsub = subscribeProgress(jobId, (event) => {
         if (event.type === 'progress') store.setProgress(item.id, event.percent, event.speed, event.eta);
         else if (event.type === 'done') { store.setDone(item.id, event.filename); store.addToHistory(item, event.filename); unsub(); }
-        else if (event.type === 'error') { store.setStatus(item.id, 'error', event.message); unsub(); }
+        else if (event.type === 'error') { store.setStatus(item.id, 'error', event.message); if (item.requestId) store.setRequestStatus(item.requestId, 'planned'); unsub(); }
       });
     } catch (e: unknown) {
       store.setStatus(item.id, 'error', e instanceof Error ? e.message : 'Ошибка');
+      if (item.requestId) store.setRequestStatus(item.requestId, 'planned');
     }
   }
 
@@ -106,7 +109,7 @@ export function VideoCard({ item }: Props) {
           )}
         </div>
 
-        <button onClick={() => store.removeItem(item.id)} className="self-start p-1 rounded-lg transition-colors" style={{ color: 'var(--text-dim)' }}
+        <button onClick={async () => { if (item.status === 'downloading' && !window.confirm('Остановить текущую загрузку?')) return; if (item.jobId) await deleteJob(item.jobId).catch(() => undefined); if (item.requestId && item.status !== 'done') store.setRequestStatus(item.requestId, 'planned'); store.removeItem(item.id); }} aria-label="Убрать задачу" className="self-start p-1 rounded-lg transition-colors" style={{ color: 'var(--text-dim)' }}
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dim)')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -115,6 +118,16 @@ export function VideoCard({ item }: Props) {
       {/* Controls */}
       {item.info && item.status !== 'error' && (
         <div className="px-4 pb-4 flex flex-wrap items-center gap-2.5">
+          <label className="rights-confirmation">
+            <input
+              type="checkbox"
+              checked={item.rightsConfirmed}
+              onChange={(event) => store.setRightsConfirmed(item.id, event.target.checked)}
+              disabled={disabled}
+            />
+            <span><strong>У меня есть право обработать этот материал</strong><small>Авторский контент, разрешение автора или допустимое законом использование.</small></span>
+          </label>
+
           {/* Format toggle */}
           <div className="pill-group">
             {(['video', 'audio'] as const).map((fmt) => (
@@ -156,13 +169,13 @@ export function VideoCard({ item }: Props) {
           {/* Action buttons */}
           <div className="ml-auto flex items-center gap-2">
             {item.info && (
-              <button onClick={() => setShowTranscript(true)} className="btn-ghost" style={{ fontSize: '11px' }}>
+              <button onClick={() => setShowTranscript(true)} disabled={!item.rightsConfirmed} className="btn-ghost" style={{ fontSize: '11px' }}>
                 📄 Транскрипт
               </button>
             )}
 
             {item.status === 'ready' && (
-              <button onClick={handleDownload} className="btn-primary btn-eclipse">
+              <button onClick={handleDownload} disabled={!item.rightsConfirmed} className="btn-primary btn-eclipse">
                 ↓ Скачать
               </button>
             )}
@@ -201,7 +214,7 @@ export function VideoCard({ item }: Props) {
       )}
 
       {showTranscript && item.info && (
-        <TranscriptModal url={item.url} title={item.info.title} onClose={() => setShowTranscript(false)} />
+        <TranscriptModal url={item.url} title={item.info.title} rightsConfirmed={item.rightsConfirmed} onComplete={() => { if (item.requestId) store.setRequestStatus(item.requestId, 'done'); }} onClose={() => setShowTranscript(false)} />
       )}
     </div>
   );

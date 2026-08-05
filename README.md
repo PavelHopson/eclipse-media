@@ -2,7 +2,7 @@
 
 > Self-hosted медиа-загрузчик | React 19 + TypeScript + FastAPI + yt-dlp
 
-Скачивай видео и аудио с YouTube, TikTok, Instagram, Twitter и ещё 1000+ сайтов — локально, без рекламы, бесплатно.
+Планируй, проверяй и обрабатывай разрешённые медиаисточники локально: видео, аудио, транскрипты и release-ролики в одном понятном workflow.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
@@ -11,6 +11,8 @@
 
 ## Возможности
 
+- Media Intake: ссылка → цель → проект → локальная очередь → одно следующее действие
+- Обязательное подтверждение прав перед скачиванием и транскрипцией
 - Скачивание MP4 (с выбором качества) и MP3
 - Реальный прогресс через Server-Sent Events
 - Массовая загрузка — несколько ссылок одновременно
@@ -33,7 +35,30 @@
 | **Sokuji** | Live translation / virtual microphone pattern для будущего режима “перевести ролик/созвон”; только consent-safe сценарии |
 | **ChatCut / MaxFusion / video-use** | Workflow benchmark: очистка речи, субтитры, motion inserts, variants, project memory. Не core dependency до API/privacy/pricing review |
 | **HyperFrames** | **P0 готов:** HTML/GSAP-композиция `Eclipse Release Signal`, preview в UI, fail-closed runner и exact `hyperframes@0.7.88` с lockfile. Runtime/layout/motion/WCAG gate и реальные `16:9`, `9:16`, `1:1` renders подтверждены локально |
+| **YTSage** | Clean-room reference для format picker, истории, subtitles и понятного download UX. Код не импортируется; network actions проходят через rights gate и SSRF validation |
+| **Reiverr** | Только clean-room product reference для единой очереди discover/request/watch. AGPL-код не копируется в MIT-проект |
 | **Torlink** | Только reference для CLI UX, очередей загрузки и source health-check. Не превращать Eclipse Media в публичный downloader "любых файлов"; тестировать только legal/open-data сценарии |
+
+## Media Intake
+
+Открой раздел **«План»** и выбери ожидаемый результат: посмотреть источник, скачать видео,
+извлечь аудио или получить транскрипт. Добавь проект и короткую заметку — задача сохранится
+локально в браузере. Для скачивания и обработки нужно явно подтвердить права на материал.
+
+Безопасный путь намеренно состоит из двух шагов:
+
+1. **«Добавить в план»** сохраняет намерение и ничего не скачивает.
+2. **«Подготовить …»** проверяет публичную HTTP(S) ссылку и открывает существующие настройки.
+
+Backend блокирует localhost, private/link-local/metadata IP, URL с credentials, опасные протоколы
+и private proxy endpoints. Одновременно выполняется не больше трёх загрузок; удаление активной
+задачи останавливает дочерний процесс. Это application-level защита: production deployment также
+должен ограничивать container egress, потому что redirects и DNS rebinding нельзя полностью
+закрыть одной проверкой до запуска `yt-dlp`.
+
+Remote runtime components `yt-dlp` выключены по умолчанию. Если конкретный extractor действительно
+требует EJS с GitHub, администратор может осознанно включить его через
+`ECLIPSE_MEDIA_ALLOW_REMOTE_COMPONENTS=true` после отдельного supply-chain review.
 
 ## Release-video pipeline
 
