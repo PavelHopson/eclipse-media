@@ -17,6 +17,7 @@
 - [x] Проверить metadata/integrity/signatures `hyperframes@0.7.88`, добавить exact devDependency +
       lockfile и подтвердить unified `check` и реальный 1080p render.
 - [ ] Добавить editable release brief и безопасную генерацию composition variables без shell interpolation.
+- [x] Добавить fail-closed импорт `eclipse.release-storyboard.v1` из Shotforge и локальный preview текста без shell/render side effects.
 - [ ] Добавить локальный render queue с size/time limits, cancellation и redacted operation audit.
 - [ ] Восстановить frontend lint gate после доступности npm registry: добавить ESLint/config как exact
       devDependencies с lockfile. Текущий исторический script `eslint .` не имеет объявленного пакета/config.
@@ -36,6 +37,15 @@
 - [ ] Добавить transcript-first video understanding с timestamps и citations.
 
 ## Changelog
+### 2026-08-12
+
+- Release Studio принимает JSON-контракт Shotforge только локально в браузере: размер ограничен
+  64 KB, схема и поля allowlisted, timeline фиксирован пятью трёхсекундными сценами.
+- Unknown fields, новая schema version, другой timing и отсутствие manual approval блокируются.
+  Импорт не запускает HyperFrames, shell, network, render или публикацию.
+- Добавлен понятный empty/error/success preview и mobile/reduced-motion layout. Подтверждённый
+  текст пока переносится в composition вручную; безопасная генерация variables остаётся отдельным этапом.
+
 
 ### 2026-08-05
 

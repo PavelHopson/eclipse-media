@@ -22,6 +22,7 @@
 - Превью: thumbnail, название, длительность, автор
 - Отдельная release-video студия: брендовый template, browser preview и offline contract check;
   HyperFrames check/render работают через проверенный exact CLI и воспроизводимый lockfile
+- Локальная проверка `eclipse.release-storyboard.v1` из Shotforge до render без загрузки, shell и side effects
 
 ## Product radar
 

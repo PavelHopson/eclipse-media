@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StoryboardImport } from './StoryboardImport';
 
 const RELEASE_DIR_COMMAND = 'cd frontend/public/studio/eclipse-release';
 const CHECK_COMMAND = `${RELEASE_DIR_COMMAND}; npm run check`;
@@ -160,6 +161,8 @@ export function ReleaseStudio() {
           <p className="studio-feedback" aria-live="polite">{copied ?? 'Exact CLI запускается локально; публикация остаётся ручной.'}</p>
         </aside>
       </div>
+
+      <StoryboardImport />
 
       <div className="studio-capabilities" aria-label="Что уже готово">
         <div><span>01</span><strong>Brand kit</strong><p>Eclipse black, signal blue и solar accent.</p></div>
