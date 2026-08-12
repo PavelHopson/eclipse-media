@@ -1,6 +1,6 @@
 # Eclipse Media Roadmap
 
-Последнее обновление: **05.08.2026**
+Последнее обновление: **12.08.2026**
 
 ## P0
 
@@ -14,6 +14,8 @@
       после byte-for-byte сверки с официальным GitHub tag.
 - [x] Заменить implicit `npx --yes` на fail-closed local runner: exact package name/version,
       path containment и `shell: false`; добавить offline timing/SRI/supply-chain contract test.
+- [x] Добавить local-first Desktop Creator Kit: ShareX local-only, QuickLook без plugins,
+      Everything без servers/history и FocuSee только для public-demo benchmark.
 - [x] Проверить metadata/integrity/signatures `hyperframes@0.7.88`, добавить exact devDependency +
       lockfile и подтвердить unified `check` и реальный 1080p render.
 - [ ] Добавить editable release brief и безопасную генерацию composition variables без shell interpolation.
@@ -38,6 +40,13 @@
 
 ## Changelog
 ### 2026-08-12
+
+- Desktop Creator Kit создаёт versioned `eclipse.creator-capture-plan.v1` только локально в браузере.
+  План не устанавливает и не запускает приложения, не читает файлы и не включает cloud upload.
+- Экспорт блокируется без rights confirmation, при наличии секретов/клиентских данных и при попытке
+  выбрать FocuSee для internal content. Auto-upload, plugins, network server и history закреплены `false`;
+  публикация всегда требует отдельного ручного подтверждения.
+- Импорт плана из Shotforge ограничен 32 KB, exact schema/tool allowlist и fail-closed controls.
 
 - Release Studio принимает JSON-контракт Shotforge только локально в браузере: размер ограничен
   64 KB, схема и поля allowlisted, timeline фиксирован пятью трёхсекундными сценами.

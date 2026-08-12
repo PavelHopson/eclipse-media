@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StoryboardImport } from './StoryboardImport';
+import { CreatorKitPanel } from './CreatorKitPanel';
 
 const RELEASE_DIR_COMMAND = 'cd frontend/public/studio/eclipse-release';
 const CHECK_COMMAND = `${RELEASE_DIR_COMMAND}; npm run check`;
@@ -163,6 +164,8 @@ export function ReleaseStudio() {
       </div>
 
       <StoryboardImport />
+      <CreatorKitPanel />
+
 
       <div className="studio-capabilities" aria-label="Что уже готово">
         <div><span>01</span><strong>Brand kit</strong><p>Eclipse black, signal blue и solar accent.</p></div>
