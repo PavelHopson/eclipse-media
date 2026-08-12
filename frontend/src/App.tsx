@@ -25,7 +25,7 @@ export default function App() {
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Не удалось проверить ссылку';
       store.setStatus(id, 'error', message);
-      throw new Error(message);
+      throw new Error(message, { cause: caught });
     }
   }
 

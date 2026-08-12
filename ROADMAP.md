@@ -21,8 +21,8 @@
 - [ ] Добавить editable release brief и безопасную генерацию composition variables без shell interpolation.
 - [x] Добавить fail-closed импорт `eclipse.release-storyboard.v1` из Shotforge и локальный preview текста без shell/render side effects.
 - [ ] Добавить локальный render queue с size/time limits, cancellation и redacted operation audit.
-- [ ] Восстановить frontend lint gate после доступности npm registry: добавить ESLint/config как exact
-      devDependencies с lockfile. Текущий исторический script `eslint .` не имеет объявленного пакета/config.
+- [x] Восстановить frontend lint gate: ESLint, TypeScript и React rules закреплены exact
+      devDependencies с lockfile; `npm run lint` снова является воспроизводимым quality gate.
 
 ## P1
 
@@ -41,6 +41,8 @@
 ## Changelog
 ### 2026-08-12
 
+- Восстановлен frontend lint gate: добавлен flat ESLint config для TypeScript/React, исправлены
+  обнаруженные правила hooks и error chaining; lint, build и dependency audit проходят локально.
 - Desktop Creator Kit создаёт versioned `eclipse.creator-capture-plan.v1` только локально в браузере.
   План не устанавливает и не запускает приложения, не читает файлы и не включает cloud upload.
 - Экспорт блокируется без rights confirmation, при наличии секретов/клиентских данных и при попытке

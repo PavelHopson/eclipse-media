@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchTranscript, TranscriptResult } from '../api/media';
 
 interface Props {
@@ -24,7 +24,7 @@ const LANGUAGES = [
 
 export function TranscriptModal({ url, title, rightsConfirmed, onComplete, onClose }: Props) {
   const [lang, setLang] = useState('auto');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<TranscriptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -40,10 +40,7 @@ export function TranscriptModal({ url, title, rightsConfirmed, onComplete, onClo
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  async function handleFetch(selectedLang: string) {
-    setLoading(true);
-    setError(null);
-    setResult(null);
+  const handleFetch = useCallback(async (selectedLang: string) => {
     try {
       const data = await fetchTranscript(url, selectedLang, rightsConfirmed);
       setResult(data);
@@ -53,15 +50,21 @@ export function TranscriptModal({ url, title, rightsConfirmed, onComplete, onClo
     } finally {
       setLoading(false);
     }
-  }
+  }, [onComplete, rightsConfirmed, url]);
 
   // Загружаем сразу при открытии
   useEffect(() => {
-    handleFetch('auto');
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+    const task = window.setTimeout(() => {
+      void handleFetch('auto');
+    }, 0);
+    return () => window.clearTimeout(task);
+  }, [handleFetch]);
 
   function handleLangChange(newLang: string) {
     setLang(newLang);
+    setLoading(true);
+    setError(null);
+    setResult(null);
     handleFetch(newLang);
   }
 

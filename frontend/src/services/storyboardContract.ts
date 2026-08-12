@@ -23,7 +23,10 @@ const FORMATS = new Set<StoryboardFormat>(['16:9', '9:16', '1:1']);
 
 function text(value: unknown, field: string, max: number): string {
   if (typeof value !== 'string') throw new Error(`${field}: ожидается текст.`);
-  const normalized = value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+  const normalized = [...value]
+    .map((character) => character.charCodeAt(0) <= 31 || character.charCodeAt(0) === 127 ? ' ' : character)
+    .join('')
+    .trim();
   if (!normalized || normalized.length > max) throw new Error(`${field}: длина должна быть от 1 до ${max} символов.`);
   return normalized;
 }
