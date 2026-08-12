@@ -94,3 +94,9 @@
   не использует shell/network fallback и требует human review до внешней публикации.
 - License boundary: Apache-2.0 HyperFrames и GreenSock “no charge” license GSAP учитываются
   отдельно; copyright notice vendored runtime сохранён.
+## Visual contract pilot — 2026-08-12
+
+- [x] Add the local product token snapshot and self-hosted Outfit/Inter with OFL notices.
+- [x] Align secondary/muted text and warm-gold accents with the Landing contract.
+- [x] Add one restrained gold/blue ambient anchor and focus treatment without changing media rights or queue behavior.
+- [x] Pass frontend typecheck and production build.

@@ -1,9 +1,42 @@
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/inter-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('/fonts/outfit-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('/fonts/outfit-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @import "tailwindcss";
 
 @layer base {
   :root {
-    --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
-    --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+    --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-display: 'Outfit', 'Inter', 'Segoe UI', system-ui, sans-serif;
     --font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
     --bg: #05070A;
     --surface: #0C1117;
@@ -15,10 +48,10 @@
     --accent-light: #9DC4FF;
     --accent-dim: #4A7FD4;
     --accent-glow: rgba(107, 163, 255, 0.15);
-    --accent2: #F5A623;
+    --accent2: #D4AF37;
     --text: #F2F5F9;
-    --text-secondary: #94A3B8;
-    --text-dim: #4A5568;
+    --text-secondary: #C4CED8;
+    --text-dim: #94A3B8;
     --success: #4AE6A0;
     --success-glow: rgba(74, 230, 160, 0.15);
     --error: #f87171;
@@ -110,7 +143,7 @@
     background: linear-gradient(90deg, var(--accent-dim), var(--accent), var(--accent-light), var(--accent2));
     background-size: 200% 100%;
     animation: eclipseProgressShimmer 2s ease infinite;
-    box-shadow: 0 0 12px var(--accent-glow), 0 0 4px rgba(245,166,35,0.15);
+    box-shadow: 0 0 12px var(--accent-glow), 0 0 4px rgba(212,175,55,0.15);
   }
 
   .mono { font-family: var(--font-mono); font-size: 10.5px; }
@@ -200,8 +233,8 @@ body::after {
   position: absolute;
   bottom: 0; right: 0;
   width: 10px; height: 10px;
-  border-bottom: 2px solid rgba(245, 166, 35, 0.12);
-  border-right: 2px solid rgba(245, 166, 35, 0.12);
+  border-bottom: 2px solid rgba(212, 175, 55, 0.12);
+  border-right: 2px solid rgba(212, 175, 55, 0.12);
   z-index: 1;
   transition: all 0.3s;
 }
@@ -211,5 +244,31 @@ body::after {
 }
 .card:hover::after {
   width: 16px; height: 16px;
-  border-color: rgba(245, 166, 35, 0.3);
+  border-color: rgba(212, 175, 55, 0.3);
+}
+
+/* Eclipse Forge visual contract v1 — product profile. */
+.forge-product-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 84% 5%, rgba(212,175,55,.07), transparent 26rem),
+    radial-gradient(circle at 12% 92%, rgba(107,163,255,.07), transparent 32rem),
+    var(--bg);
+}
+.forge-product-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 30;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(107,163,255,.7) 38%, rgba(212,175,55,.55) 68%, transparent);
+}
+.forge-product-shell h1,
+.forge-product-shell h2,
+.forge-product-shell h3 { font-family: var(--font-display); }
+.forge-product-shell :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }

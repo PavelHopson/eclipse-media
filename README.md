@@ -147,3 +147,6 @@ npm run dev
 <div align="center">
 <sub>Сделано в Eclipse Forge</sub>
 </div>
+## Eclipse Forge visual contract
+
+Eclipse Media uses the local `eclipse-forge.visual-system.v1` snapshot in the `product` profile: self-hosted Outfit/Inter, signal-blue actions, warm-gold highlights, subtle grid depth and reduced-motion-safe transitions. Operational rights gates and queue states remain visually dominant over decoration.
