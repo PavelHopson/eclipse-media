@@ -150,3 +150,16 @@ npm run dev
 ## Eclipse Forge visual contract
 
 Eclipse Media uses the local `eclipse-forge.visual-system.v1` snapshot in the `product` profile: self-hosted Outfit/Inter, signal-blue actions, warm-gold highlights, subtle grid depth and reduced-motion-safe transitions. Operational rights gates and queue states remain visually dominant over decoration.
+
+## Production deployment
+
+Production uses docker-compose.production.yml: the frontend is built once and served by a
+non-root NGINX container, the FastAPI backend runs as a non-root user, both containers drop Linux
+capabilities and use read-only filesystems, and only the frontend is bound to host loopback.
+
+The Deploy production workflow is manual, master-only and attached to the protected GitHub
+production environment. Configure DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH, DEPLOY_SSH_KEY and
+DEPLOY_KNOWN_HOSTS as environment secrets; optionally set ECLIPSE_MEDIA_PORT as an environment
+variable. DEPLOY_PATH must be below /opt or /srv. The workflow verifies tests and images before SSH,
+uses the supplied known_hosts entry, activates an immutable commit release, checks /api/health and
+restores the previous release on failure. Reverse proxy and public TLS stay outside this repository.

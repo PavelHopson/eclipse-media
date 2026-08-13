@@ -4,6 +4,10 @@
 
 ## P0
 
+- [x] Add a manual production deployment gate with a protected GitHub environment, pinned actions,
+      strict SSH host verification, non-root/read-only containers, loopback-only exposure,
+      pre-deploy test/build checks, health verification and rollback.
+
 - [x] Добавить Media Intake: четыре понятных результата, project context, заметки и локальную очередь.
 - [x] Добавить rights gate, public URL/proxy validation, максимум три активные задачи и process cancellation.
 - [x] Закрепить `yt-dlp==2026.3.17`; remote EJS components сделать opt-in, а CI actions — SHA-pinned.
@@ -39,6 +43,13 @@
 - [ ] Добавить transcript-first video understanding с timestamps и citations.
 
 ## Changelog
+### 2026-08-13 - production deployment foundation
+
+- Added immutable source-archive deployment behind workflow_dispatch and the protected production environment.
+- Production containers run non-root with dropped capabilities and read-only roots; the app binds to loopback for an external TLS proxy.
+- SSH host trust comes only from the configured known_hosts secret. Activation requires a healthy API and restores the previous release on failure.
+- Local Docker validation was unavailable on this Windows host; the workflow performs compose validation and image builds before any SSH step.
+
 ### 2026-08-13
 
 - Release Studio now validates metadata-only `eclipse.media-asset.v1` sidecars from Text2Image locally.

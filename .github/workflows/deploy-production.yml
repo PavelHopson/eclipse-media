@@ -1,0 +1,125 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eclipse-media-production
+  cancel-in-progress: false
+
+jobs:
+  verify-and-deploy:
+    if: github.ref == 'refs/heads/master'
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout approved revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify frontend
+        working-directory: frontend
+        run: npm ci && npm run lint && npm test && npm run build
+
+      - name: Verify backend
+        working-directory: backend
+        run: pip install -r requirements.txt && python -m unittest -v
+
+      - name: Validate production compose
+        run: docker compose -f docker-compose.production.yml config --quiet
+
+      - name: Build production images
+        run: docker compose -f docker-compose.production.yml build
+
+      - name: Configure SSH trust
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$DEPLOY_KEY" && test -n "$KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Package tracked source
+        run: git archive --format=tar.gz --output="eclipse-media-$GITHUB_SHA.tar.gz" "$GITHUB_SHA"
+
+      - name: Upload release archive
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          case "$DEPLOY_HOST" in ''|*[!A-Za-z0-9._-]*) echo "Invalid DEPLOY_HOST" >&2; exit 1 ;; esac
+          case "$DEPLOY_USER" in ''|*[!A-Za-z0-9._-]*) echo "Invalid DEPLOY_USER" >&2; exit 1 ;; esac
+          scp -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "eclipse-media-$GITHUB_SHA.tar.gz" "$DEPLOY_USER@$DEPLOY_HOST:eclipse-media-$GITHUB_SHA.tar.gz"
+
+      - name: Activate with healthcheck and rollback
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          MEDIA_PORT: ${{ vars.ECLIPSE_MEDIA_PORT || '8080' }}
+        run: |
+          case "$DEPLOY_HOST" in ''|*[!A-Za-z0-9._-]*) echo "Invalid DEPLOY_HOST" >&2; exit 1 ;; esac
+          case "$DEPLOY_USER" in ''|*[!A-Za-z0-9._-]*) echo "Invalid DEPLOY_USER" >&2; exit 1 ;; esac
+          [[ "$DEPLOY_PATH" =~ ^/(opt|srv)/[A-Za-z0-9._/-]+$ ]] || { echo "Invalid DEPLOY_PATH" >&2; exit 1; }
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "$DEPLOY_USER@$DEPLOY_HOST" bash -s -- "$DEPLOY_PATH" "$GITHUB_SHA" "$MEDIA_PORT" <<'REMOTE'
+          set -Eeuo pipefail
+          deploy_path="$(realpath -m -- "$1")"
+          revision="$2"
+          media_port="$3"
+          case "$deploy_path" in /opt/*|/srv/*) ;; *) echo "DEPLOY_PATH must be below /opt or /srv" >&2; exit 1 ;; esac
+          case "$revision" in ''|*[!0-9a-f]*) echo "Invalid revision" >&2; exit 1 ;; esac
+          case "$media_port" in ''|*[!0-9]*) echo "Invalid port" >&2; exit 1 ;; esac
+          [ "$media_port" -ge 1 ] && [ "$media_port" -le 65535 ] || { echo "Port out of range" >&2; exit 1; }
+          release="$deploy_path/releases/$revision"
+          archive="$HOME/eclipse-media-$revision.tar.gz"
+          previous=""
+          cleanup() { rm -f "$archive"; }
+          trap cleanup EXIT
+          if [ -L "$deploy_path/current" ]; then previous="$(readlink -f "$deploy_path/current")"; fi
+          case "$previous" in "$deploy_path"/releases/*|'') ;; *) echo "Ignoring unsafe previous release path" >&2; previous="" ;; esac
+          if [ -e "$release" ]; then
+            current=""
+            if [ -L "$deploy_path/current" ]; then current="$(readlink -f "$deploy_path/current")"; fi
+            [ "$current" = "$release" ] || { echo "Release path already exists" >&2; exit 1; }
+          else
+            install -d -m 750 "$deploy_path/releases" "$release"
+            tar -xzf "$archive" -C "$release" --no-same-owner --no-same-permissions
+          fi
+          export ECLIPSE_MEDIA_PORT="$media_port"
+          if docker compose -p eclipse-media -f "$release/docker-compose.production.yml" up -d --build --remove-orphans; then
+            healthy=0
+            for attempt in $(seq 1 20); do
+              if curl --fail --silent --show-error "http://127.0.0.1:$media_port/api/health" >/dev/null; then healthy=1; break; fi
+              sleep 3
+            done
+            if [ "$healthy" -eq 1 ]; then
+              ln -sfn "$release" "$deploy_path/current"
+              exit 0
+            fi
+          fi
+          echo "Deployment failed healthcheck; restoring previous release" >&2
+          docker compose -p eclipse-media -f "$release/docker-compose.production.yml" down || true
+          if [ -n "$previous" ] && [ -f "$previous/docker-compose.production.yml" ]; then
+            docker compose -p eclipse-media -f "$previous/docker-compose.production.yml" up -d --build --remove-orphans
+            ln -sfn "$previous" "$deploy_path/current"
+          fi
+          exit 1
+          REMOTE
