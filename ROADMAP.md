@@ -39,6 +39,13 @@
 - [ ] Добавить transcript-first video understanding с timestamps и citations.
 
 ## Changelog
+### 2026-08-13
+
+- Release Studio now validates metadata-only `eclipse.media-asset.v1` sidecars from Text2Image locally.
+- The contract rejects URLs, paths, unknown fields, unsupported image formats and missing rights approval.
+- The image binary is never embedded, fetched or uploaded; the operator selects the matching local image manually.
+- Added responsive empty/error/success preview plus two security regression tests. Typecheck, lint and production build pass.
+
 ### 2026-08-12
 
 - Восстановлен frontend lint gate: добавлен flat ESLint config для TypeScript/React, исправлены

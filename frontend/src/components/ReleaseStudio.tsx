@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StoryboardImport } from './StoryboardImport';
+import { MediaAssetImport } from './MediaAssetImport';
 import { CreatorKitPanel } from './CreatorKitPanel';
 
 const RELEASE_DIR_COMMAND = 'cd frontend/public/studio/eclipse-release';
@@ -164,6 +165,7 @@ export function ReleaseStudio() {
       </div>
 
       <StoryboardImport />
+      <MediaAssetImport />
       <CreatorKitPanel />
 
 
