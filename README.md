@@ -90,6 +90,31 @@ Runner завершается fail closed, если локальная верс�
 SHA-384 SRI проверяются offline, а байты сверены с официальным GitHub tag. GSAP использует
 отдельную GreenSock “no charge” license (не MIT/Apache); copyright header сохранён.
 
+
+## MiniMax Music 3 benchmark
+
+Eclipse Media now has a reproducible, dry-run-first benchmark plan in
+backend/minimax_music3_benchmark.py. It does not download the model, execute remote code,
+or contact a cloud provider. Supply an exact 40-character Hugging Face commit revision:
+
+    cd backend
+    python minimax_music3_benchmark.py --revision <PINNED_COMMIT_SHA>
+
+The three initial cases cover a release cue, tabletop ambience, and original Russian vocal
+clarity without copyrighted lyrics, named-artist imitation, or voice cloning. Execution is
+separate and requires every approval flag plus an isolated loopback runner:
+
+    python minimax_music3_benchmark.py --revision <PINNED_COMMIT_SHA> --execute \
+      --accept-license --confirm-rights --confirm-no-sensitive-input \
+      --confirm-no-voice-impersonation
+
+The runner URL is fixed to loopback HTTP with the exact /v1/music/generate path. Tokens come
+only from ECLIPSE_MEDIA_BENCHMARK_TOKEN and are never printed. Responses are capped at 1 MiB
+and may return only bounded metrics and an asset SHA-256; raw audio, paths, and URLs are not
+stored in the benchmark report. Redirects are rejected so credentials remain inside the
+validated loopback boundary. A real quality/latency result still requires a separately
+audited runner, compatible hardware, verified model terms, and manual listening review.
+
 ## Быстрый старт
 
 ### Docker (рекомендуется)

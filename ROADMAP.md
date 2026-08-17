@@ -41,8 +41,18 @@
 
 - [ ] Подключить Eclipse AI Hub Model Registry для image/video/voice providers.
 - [ ] Добавить transcript-first video understanding с timestamps и citations.
+- [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-17 - MiniMax Music 3 benchmark contract
+
+- Added three original, bounded music-generation cases and a deterministic dry-run plan.
+- Live execution now fails closed without a pinned commit, model-license acceptance, rights confirmation,
+  sensitive-input and voice-impersonation attestations, plus an exact loopback runner endpoint.
+- Runner redirects are rejected and response length, metrics, duration and sample rate are bounded before reporting.
+- Reports keep only allowlisted quality metrics and asset hashes. No model code, remote runner, raw audio,
+  token, URL, or local path is pulled into the repository by the benchmark command.
+- Fourteen backend tests pass. A real model run remains pending audited hardware/runtime and terms review.
 ### 2026-08-13 - production deployment foundation
 
 - Added immutable source-archive deployment behind workflow_dispatch and the protected production environment.

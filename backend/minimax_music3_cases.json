@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "eclipse.media.music-benchmark.v1",
+  "cases": [
+    {
+      "id": "product-release-instrumental",
+      "title": "Product release pulse",
+      "prompt": "Original instrumental electronic cue with a calm technical opening, a clear rising middle section and a concise resolved ending. No imitation of a named artist or existing work.",
+      "durationSeconds": 30,
+      "language": "none",
+      "mode": "instrumental"
+    },
+    {
+      "id": "fantasy-tabletop-instrumental",
+      "title": "Fantasy tabletop ambience",
+      "prompt": "Original cinematic fantasy ambience for a tabletop map reveal: restrained strings, light hand percussion and a memorable but entirely new motif. No imitation of a named composer.",
+      "durationSeconds": 45,
+      "language": "none",
+      "mode": "instrumental"
+    },
+    {
+      "id": "russian-original-vocal",
+      "title": "Original Russian vocal clarity",
+      "prompt": "Original Russian vocal demo with the supplied neutral line: «Новый путь начинается с ясной идеи». Warm natural delivery, clear diction, modest arrangement, no cloned or imitated voice.",
+      "durationSeconds": 20,
+      "language": "ru",
+      "mode": "original-vocal"
+    }
+  ]
+}
