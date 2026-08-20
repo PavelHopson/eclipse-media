@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StoryboardImport } from './StoryboardImport';
 import { MediaAssetImport } from './MediaAssetImport';
 import { CreatorKitPanel } from './CreatorKitPanel';
+import { VideoAdPlanImport } from './VideoAdPlanImport';
 
 const RELEASE_DIR_COMMAND = 'cd frontend/public/studio/eclipse-release';
 const CHECK_COMMAND = `${RELEASE_DIR_COMMAND}; npm run check`;
@@ -166,6 +167,7 @@ export function ReleaseStudio() {
 
       <StoryboardImport />
       <MediaAssetImport />
+      <VideoAdPlanImport />
       <CreatorKitPanel />
 
 

@@ -44,6 +44,12 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-20 - preview-first AI video ads
+
+- Added strict local import for `eclipse.video-ad-plan.v1` with a fixed 15-second timeline and unknown-field rejection.
+- The UI covers empty, loading, error, ready, approved and disabled states and requires three manual review checks.
+- Import and approval never invoke a network request, renderer, shell command or publisher; final publication remains separately gated.
+
 ### 2026-08-17 - MiniMax Music 3 benchmark contract
 
 - Added three original, bounded music-generation cases and a deterministic dry-run plan.
