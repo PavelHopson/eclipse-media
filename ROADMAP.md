@@ -73,6 +73,13 @@
 - The image binary is never embedded, fetched or uploaded; the operator selects the matching local image manually.
 - Added responsive empty/error/success preview plus two security regression tests. Typecheck, lint and production build pass.
 
+### 2026-08-20 - video ad plan browser acceptance
+
+- Real Edge/Playwright acceptance passes at 1440x900 and 390x844 for local plan import, deterministic
+  three-scene preview, all three manual checks and render-preparation approval.
+- Keyboard focus, reduced motion, horizontal overflow, console errors, page errors and failed requests
+  were checked in both viewports; render approval remains separate from publish approval.
+
 ### 2026-08-12
 
 - Восстановлен frontend lint gate: добавлен flat ESLint config для TypeScript/React, исправлены
