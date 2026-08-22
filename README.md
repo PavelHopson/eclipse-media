@@ -126,16 +126,31 @@ audited runner, compatible hardware, verified model terms, and manual listening 
 
 ### Windows — один файл
 
-Дважды нажмите [`Eclipse Media.cmd`](Eclipse%20Media.cmd). Launcher:
+Для обычного запуска дважды нажмите `Eclipse Media.exe` в корне проекта или ярлык
+`Eclipse Media` на рабочем столе. Это автономный Windows x64 launcher: установленный
+.NET Runtime ему не нужен, а пользовательские аргументы не передаются в PowerShell.
 
-- проверит Node.js 22+, Python 3.11+ и FFmpeg;
-- создаст изолированный `backend/.venv` и установит pinned backend dependencies только при изменении `requirements.txt`;
-- установит frontend dependencies через `npm ci --ignore-scripts` только при изменении lockfile;
-- запустит API и интерфейс только на `127.0.0.1`, откроет браузер и остановит созданные процессы по Enter.
+Чтобы пересобрать EXE из проверяемого исходного кода и заново установить ярлык:
+
+```powershell
+.\Build-Eclipse-Media-Exe.ps1
+.\Install-Eclipse-Media-Shortcut.ps1
+```
+
+`Eclipse Media.cmd` остаётся прозрачным fallback-вариантом. Оба launcher-сценария:
+
+- проверяют Node.js 22+, Python 3.11+ и FFmpeg;
+- создают изолированный `backend/.venv` и устанавливают pinned backend dependencies только при изменении `requirements.txt`;
+- устанавливают frontend dependencies через `npm ci --ignore-scripts` только при изменении lockfile;
+- запускают API и интерфейс только на `127.0.0.1`, открывают браузер и останавливают созданные процессы по Enter.
 
 Если порты `8000` или `5173` заняты другим приложением, запуск завершится с понятной ошибкой,
 не подключаясь к чужому процессу. Диагностические логи сохраняются локально в `.runtime/` и не
 попадают в Git.
+
+Локально собранный EXE не подписан коммерческим code-signing сертификатом, поэтому Windows
+SmartScreen может показать предупреждение. Исходный launcher находится в `launcher/`, а сборка
+не использует сторонние EXE-packers.
 
 ### Docker (рекомендуется)
 

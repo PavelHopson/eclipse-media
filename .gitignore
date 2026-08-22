@@ -9,6 +9,9 @@ __pycache__/
 venv/
 backend/downloads/
 .runtime/
+/Eclipse Media.exe
+launcher/bin/
+launcher/obj/
 frontend/public/studio/eclipse-release/renders/
 frontend/public/studio/eclipse-release/snapshots/
 .DS_Store

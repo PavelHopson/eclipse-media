@@ -1,6 +1,6 @@
 # Eclipse Media Roadmap
 
-Последнее обновление: **12.08.2026**
+Последнее обновление: **22.08.2026**
 
 ## P0
 
@@ -57,6 +57,9 @@
   product-композицию без горизонтального overflow.
 - Добавлен `Eclipse Media.cmd` с PowerShell launcher: isolated venv, lockfile-aware bootstrap,
   loopback-only API/UI, проверка занятых портов, локальные логи и cleanup принадлежащих launcher процессов.
+- Добавлен воспроизводимый автономный `Eclipse Media.exe` для Windows x64 без стороннего packer:
+  он запускает только соседний проверенный PowerShell-сценарий, не принимает внешние аргументы и
+  устанавливает явный desktop-ярлык отдельной обратимой командой.
 
 ### 2026-08-22 - bounded archive download preset
 
