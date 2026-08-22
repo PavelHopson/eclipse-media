@@ -272,3 +272,20 @@ body::after {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+/* Visual profile: production bento + lightweight spatial depth. */
+.forge-product-shell[data-visual-profile="bento-spatial"] {
+  background:
+    radial-gradient(circle at 86% 6%, rgba(107,163,255,.09), transparent 30rem),
+    linear-gradient(180deg, #05070a, #070a0f 58%, #05070a);
+  perspective: 1400px;
+}
+.forge-product-shell[data-visual-profile="bento-spatial"] .card { border-radius: 14px; }
+@media (hover:hover) and (pointer:fine) {
+  .forge-product-shell[data-visual-profile="bento-spatial"] .card:hover {
+    transform: translateY(-2px) translateZ(8px);
+    box-shadow: 0 26px 64px -48px rgba(107,163,255,.8);
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .forge-product-shell[data-visual-profile="bento-spatial"] .card { transform: none !important; }
+}

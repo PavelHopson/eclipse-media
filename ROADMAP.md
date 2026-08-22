@@ -141,3 +141,9 @@
 - [x] Align secondary/muted text and warm-gold accents with the Landing contract.
 - [x] Add one restrained gold/blue ambient anchor and focus treatment without changing media rights or queue behavior.
 - [x] Pass frontend typecheck and production build.
+
+## Bento spatial profile — 2026-08-22
+
+- [x] Assign the `bento-spatial` profile to media workspaces: compact functional groups, bounded depth and one ambient light source.
+- [x] Keep rights, queue and approval boundaries unchanged; added motion is pointer-only and disabled for reduced motion.
+- [x] Pass frontend typecheck, four security-contract tests and production build.

@@ -67,7 +67,7 @@ export default function App() {
       : 'Local preview';
 
   return (
-    <div className="min-h-screen eclipse-grid forge-product-shell" data-visual-profile="product">
+    <div className="min-h-screen eclipse-grid forge-product-shell" data-visual-profile="bento-spatial">
       <header
         className="app-header sticky top-0 z-20 px-5 py-3.5 flex items-center gap-3"
         style={{
