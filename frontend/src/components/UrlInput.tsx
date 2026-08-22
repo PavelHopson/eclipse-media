@@ -7,7 +7,11 @@ interface Props {
 
 export function UrlInput({ onSubmit, loading }: Props) {
   const [value, setValue] = useState('');
+  const [error, setError] = useState('');
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  const lines = value.split('\n').map((line) => line.trim()).filter(Boolean);
+  const validUrls = lines.filter((line) => /^https?:\/\//i.test(line));
 
   useEffect(() => {
     if (ref.current) {
@@ -17,8 +21,24 @@ export function UrlInput({ onSubmit, loading }: Props) {
   }, [value]);
 
   function handleSubmit() {
-    const urls = value.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('http'));
-    if (urls.length > 0) { onSubmit(urls); setValue(''); }
+    if (lines.length === 0) {
+      setError('Вставьте хотя бы одну ссылку.');
+      ref.current?.focus();
+      return;
+    }
+    if (validUrls.length !== lines.length) {
+      setError('Каждая строка должна начинаться с http:// или https://');
+      ref.current?.focus();
+      return;
+    }
+    if (validUrls.length > 10) {
+      setError('За один раз можно проверить не более 10 ссылок.');
+      ref.current?.focus();
+      return;
+    }
+    setError('');
+    onSubmit(validUrls);
+    setValue('');
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -26,33 +46,26 @@ export function UrlInput({ onSubmit, loading }: Props) {
   }
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden transition-all"
-      style={{
-        background: value
-          ? 'linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(135deg, var(--accent), var(--accent-light), var(--accent2)) border-box'
-          : 'var(--surface)',
-        border: value ? '1px solid transparent' : '1px solid var(--border)',
-        boxShadow: value
-          ? '0 0 0 1px rgba(107,163,255,0.3), 0 4px 28px rgba(107,163,255,0.18), 0 0 60px rgba(107,163,255,0.06)'
-          : 'none',
-        transition: 'border-color 0.3s, box-shadow 0.3s, background 0.3s',
-      }}
-    >
+    <div className={`url-field ${value ? 'has-value' : ''} ${error ? 'has-error' : ''}`}>
+      <label className="sr-only" htmlFor="media-url-input">Ссылки на видео</label>
       <textarea
+        id="media-url-input"
         ref={ref}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => { setValue(e.target.value); if (error) setError(''); }}
         onKeyDown={handleKeyDown}
-        placeholder="Вставьте ссылку на видео..."
+        placeholder="https://vkvideo.ru/video-…"
         rows={1}
-        className="w-full px-5 pt-4 pb-2 text-sm resize-none outline-none"
-        style={{ background: 'transparent', color: 'var(--text)', minHeight: '44px' }}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? 'url-input-error' : 'url-input-help'}
+        className="url-field__input"
       />
-      <div className="flex items-center justify-between px-4 pb-3">
-        <span className="mono" style={{ color: 'var(--text-dim)' }}>Enter — отправить · Shift+Enter — новая строка</span>
-        <button onClick={handleSubmit} disabled={!value.trim() || loading} className="btn-primary btn-eclipse">
-          {loading ? (<><span className="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Загрузка...</>) : 'Получить →'}
+      <div className="url-field__footer">
+        <span id={error ? 'url-input-error' : 'url-input-help'} className={error ? 'url-field__error' : 'url-field__hint'} aria-live="polite">
+          {error || (lines.length > 1 ? `${lines.length} ссылок добавлено` : 'Enter — проверить · Shift+Enter — новая строка')}
+        </span>
+        <button type="button" onClick={handleSubmit} disabled={!value.trim() || loading} className="btn-primary btn-eclipse">
+          {loading ? (<><span className="button-spinner" aria-hidden="true" /> Проверяем...</>) : 'Проверить ссылку'}
         </button>
       </div>
     </div>

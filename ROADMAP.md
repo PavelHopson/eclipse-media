@@ -27,6 +27,8 @@
 - [ ] Добавить локальный render queue с size/time limits, cancellation и redacted operation audit.
 - [x] Восстановить frontend lint gate: ESLint, TypeScript и React rules закреплены exact
       devDependencies с lockfile; `npm run lint` снова является воспроизводимым quality gate.
+- [x] Перестроить главный download workspace вокруг одного сценария «ссылка → проверка → права → файл»
+      и добавить Windows one-click launcher без Docker-зависимости.
 
 ## P1
 
@@ -47,6 +49,15 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-22 - guided download workspace and Windows launcher
+
+- Главный экран получил явную иерархию, трёхшаговый flow, отдельную очередь и компактную
+  local/privacy-панель; ввод URL теперь показывает inline validation и ограничен десятью ссылками.
+- Mobile layout удерживает поле и CTA в первом экране, а desktop использует спокойную двухколоночную
+  product-композицию без горизонтального overflow.
+- Добавлен `Eclipse Media.cmd` с PowerShell launcher: isolated venv, lockfile-aware bootstrap,
+  loopback-only API/UI, проверка занятых портов, локальные логи и cleanup принадлежащих launcher процессов.
+
 ### 2026-08-22 - bounded archive download preset
 
 - Clean-room comparison with GPLv3 Cube YouTube Downloader documented the real parity and gaps.

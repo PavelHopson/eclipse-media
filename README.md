@@ -124,6 +124,19 @@ audited runner, compatible hardware, verified model terms, and manual listening 
 
 ## Быстрый старт
 
+### Windows — один файл
+
+Дважды нажмите [`Eclipse Media.cmd`](Eclipse%20Media.cmd). Launcher:
+
+- проверит Node.js 22+, Python 3.11+ и FFmpeg;
+- создаст изолированный `backend/.venv` и установит pinned backend dependencies только при изменении `requirements.txt`;
+- установит frontend dependencies через `npm ci --ignore-scripts` только при изменении lockfile;
+- запустит API и интерфейс только на `127.0.0.1`, откроет браузер и остановит созданные процессы по Enter.
+
+Если порты `8000` или `5173` заняты другим приложением, запуск завершится с понятной ошибкой,
+не подключаясь к чужому процессу. Диагностические логи сохраняются локально в `.runtime/` и не
+попадают в Git.
+
 ### Docker (рекомендуется)
 
 ```bash

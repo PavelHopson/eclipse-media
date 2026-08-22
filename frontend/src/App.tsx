@@ -79,8 +79,10 @@ export default function App() {
       >
         <div className="flex items-center gap-2.5 relative">
           <div className="absolute -inset-3 rounded-2xl pointer-events-none" style={{ background: 'radial-gradient(ellipse at 30% 50%, rgba(107,163,255,0.12) 0%, transparent 70%)', filter: 'blur(8px)' }} />
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center relative" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%)', boxShadow: '0 2px 12px var(--accent-glow)' }}>
-            <span aria-hidden="true" style={{ fontSize: '14px' }}>⚡</span>
+          <div className="brand-mark relative" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+              <path d="M6 5.5 12 2l6 3.5v7L12 16l-3-1.75V18l3 1.75L18 16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
           <div className="relative">
             <span className="font-semibold text-sm tracking-tight text-glow" style={{ color: 'var(--text)' }}>Eclipse Media</span>
@@ -109,38 +111,82 @@ export default function App() {
         <div className="header-status"><span className="tag">{headerStatus}</span></div>
       </header>
 
-      <main className={workspace === 'downloads' ? 'max-w-2xl mx-auto px-4 pt-8 pb-16' : 'studio-shell'}>
+      <main className={workspace === 'downloads' ? 'download-shell' : 'studio-shell'}>
         {workspace === 'studio' && <ReleaseStudio />}
         {workspace === 'intake' && <MediaIntake onPrepare={handlePrepare} />}
         {workspace === 'downloads' && (
           <>
-            <UrlInput onSubmit={handleSubmit} loading={fetching} />
-            <p className="download-guidance">Вставьте ссылку, проверьте материал и подтвердите права перед скачиванием или транскрипцией.</p>
-            <div className="mt-4"><ProxySettings /></div>
-            <div className="eclipse-separator mt-6" />
+            <section className="download-hero" aria-labelledby="download-title">
+              <div>
+                <span className="section-kicker">Локальная медиа-мастерская</span>
+                <h1 id="download-title">Получите нужный медиафайл <br />без лишних шагов</h1>
+                <p>Вставьте прямую публичную ссылку. Eclipse Media проверит источник и покажет доступные варианты до начала скачивания.</p>
+              </div>
+              <ol className="download-path" aria-label="Порядок работы">
+                <li><span>01</span><strong>Ссылка</strong><small>Укажите источник</small></li>
+                <li><span>02</span><strong>Проверка</strong><small>Выберите результат</small></li>
+                <li><span>03</span><strong>Файл</strong><small>Сохраните локально</small></li>
+              </ol>
+            </section>
 
-            {store.items.length > 0 && (
-              <div className="mt-6 flex flex-col gap-3">
-                {store.items.map((item, index) => (
-                  <div key={item.id} className="animate-in" style={{ animationDelay: `${index * 50}ms` }}>
-                    <VideoCard item={item} />
+            <div className="download-layout">
+              <section className="download-primary" aria-label="Новая задача">
+                <div className="download-start-card">
+                  <div className="download-start-card__heading">
+                    <div>
+                      <span className="step-badge">Новая задача</span>
+                      <h2>Добавьте ссылку на видео</h2>
+                    </div>
+                    <span className="direct-link-badge">Прямая ссылка</span>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {store.items.length === 0 && (
-              <div className="mt-20 text-center animate-in relative">
-                <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/4 w-40 h-40 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(107,163,255,0.1) 0%, transparent 70%)', filter: 'blur(20px)' }} />
-                <div className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center relative" style={{ background: 'linear-gradient(145deg, var(--surface2), var(--surface))', border: '1px solid var(--border)', boxShadow: '0 0 40px rgba(107,163,255,0.15)' }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                  <UrlInput onSubmit={handleSubmit} loading={fetching} />
+                  <p className="download-guidance">Можно добавить до 10 ссылок, по одной в строке. Профили и целые каналы пока не поддерживаются.</p>
                 </div>
-                <p className="text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Начните со ссылки или составьте план</p>
-                <button type="button" className="btn-ghost mt-3" onClick={() => setWorkspace('intake')}>Открыть план материалов</button>
-              </div>
-            )}
 
-            <History />
+                <div className="utility-row"><ProxySettings /></div>
+
+                {store.items.length > 0 && (
+                  <section className="queue-section" aria-labelledby="queue-title">
+                    <div className="queue-section__heading">
+                      <div>
+                        <span className="section-kicker">Текущая сессия</span>
+                        <h2 id="queue-title">Очередь обработки</h2>
+                      </div>
+                      <span className="queue-count">{store.items.length}</span>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {store.items.map((item, index) => (
+                        <div key={item.id} className="animate-in" style={{ animationDelay: `${index * 50}ms` }}>
+                          <VideoCard item={item} />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {store.items.length === 0 && (
+                  <div className="download-empty" role="status">
+                    <div className="download-empty__icon" aria-hidden="true">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
+                    </div>
+                    <div><strong>Очередь пока пуста</strong><span>Вставьте ссылку выше — проверка начнётся сразу.</span></div>
+                  </div>
+                )}
+
+                <History />
+              </section>
+
+              <aside className="download-trust-panel" aria-label="О работе приложения">
+                <div className="local-status"><span aria-hidden="true" /><div><strong>Локальный режим</strong><small>Файлы остаются на этом устройстве</small></div></div>
+                <div className="trust-list">
+                  <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8.1 7 10 4.2-1.9 7-5.4 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg><span><strong>Без cookies аккаунта</strong><small>Не передаём сессии платформ</small></span></div>
+                  <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16" /><path d="M7 3v4M17 3v4" /><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 11h8M8 15h5" /></svg><span><strong>Очистка через 1 час</strong><small>Временные файлы удаляются</small></span></div>
+                  <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16M12 4v16" /><circle cx="12" cy="12" r="9" /></svg><span><strong>До 3 процессов</strong><small>Очередь защищена от перегрузки</small></span></div>
+                </div>
+                <div className="rights-note"><strong>Важно</strong><p>Скачивайте только собственные материалы или контент, на обработку которого у вас есть разрешение.</p></div>
+                <button type="button" className="trust-plan-link" onClick={() => setWorkspace('intake')}>Сначала составить медиаплан <span aria-hidden="true">→</span></button>
+              </aside>
+            </div>
           </>
         )}
       </main>
