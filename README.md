@@ -125,7 +125,24 @@ audited runner, compatible hardware, verified model terms, and manual listening 
 
 ## Быстрый старт
 
-### Windows — один файл
+### Windows — нативное приложение (Tauri 2)
+
+Нативный Eclipse Media работает в отдельном окне, остаётся в системном трее после закрытия,
+показывает системное уведомление и сохраняет готовый файл через стандартный Windows-диалог.
+FastAPI/yt-dlp упакован как локальный sidecar: shell выбирает свободный loopback-порт и передаёт
+одноразовый session token только через environment. API не доступен без заголовка с токеном.
+
+Воспроизводимая сборка Windows x64:
+
+```powershell
+.\Build-Eclipse-Media-Desktop.ps1
+```
+
+NSIS-инсталлятор появляется в `frontend/src-tauri/target/release/bundle/nsis/`. Для работы с
+медиа FFmpeg должен быть установлен локально и доступен в `PATH`. Текущий pilot build не подписан
+коммерческим code-signing сертификатом, поэтому SmartScreen может показать предупреждение.
+
+### Windows — браузерный fallback
 
 Для обычного запуска дважды нажмите `Eclipse Media.exe` в корне проекта или ярлык
 `Eclipse Media` на рабочем столе. Это автономный Windows x64 launcher: установленный
@@ -186,7 +203,7 @@ npm run dev
 |-------|-----------|
 | Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 · Zustand |
 | Backend | Python · FastAPI · yt-dlp · Server-Sent Events |
-| Инфра | Docker · ffmpeg |
+| Desktop / инфра | Tauri 2 · Rust · PyInstaller sidecar · Docker · FFmpeg |
 
 ## Улучшения над оригинальным Reclip
 

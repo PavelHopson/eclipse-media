@@ -1,6 +1,6 @@
 # Eclipse Media Desktop + Eclipse Chat
 
-Последнее обновление: **22.08.2026**
+Последнее обновление: **23.08.2026**
 
 ## Решение
 
@@ -63,9 +63,11 @@ Chat не получает права самостоятельно скачив�
 
 ### P1 — Tauri desktop MVP (L)
 
-- Упаковать существующий React UI и Media Core sidecar.
-- Native save dialog, tray, notifications, single-instance lock и graceful shutdown.
-- Windows x64 signed installer; portable build оставить вторичным вариантом.
+- **Pilot реализован:** существующий React UI и PyInstaller Media Core упакованы в Tauri 2.
+- **Pilot реализован:** dynamic loopback port, environment-only session token, native save dialog,
+  tray, notifications, single-instance lock и graceful sidecar shutdown.
+- **Открытый release gate:** production code signing, signed updater manifest и rollback build.
+  Локальный NSIS pilot остаётся unsigned и не считается production distribution.
 
 ### P2 — Eclipse Chat adapter (L)
 
@@ -80,6 +82,7 @@ Chat не получает права самостоятельно скачив�
 
 ## Следующий vertical slice
 
-Tauri spike на Windows: открыть текущий UI в native window, запустить sidecar на случайном
-loopback-порту, скачать один разрешённый публичный test asset, показать системное уведомление и
-сохранить через native dialog. Без Chat, updater и production distribution в первом spike.
+Провести ручной acceptance нативного окна на одном разрешённом публичном test asset: проверить
+длинный HLS progress, закрытие в tray, notification и native save dialog. После acceptance —
+зафиксировать `eclipse.media-job/progress/receipt.v1` и реализовать read-only Eclipse Chat adapter
+без cloud tunnel, файлов, cookies, stream URL и локальных путей.

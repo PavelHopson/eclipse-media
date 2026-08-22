@@ -1,6 +1,6 @@
 # Eclipse Media Roadmap
 
-Последнее обновление: **22.08.2026**
+Последнее обновление: **23.08.2026**
 
 ## P0
 
@@ -32,8 +32,10 @@
 
 ## P1
 
-- [ ] Собрать Tauri 2 desktop MVP: native window/save dialog/tray/notifications, single-instance,
-      signed Windows installer и loopback Media Core sidecar с session token.
+- [x] Собрать Tauri 2 desktop MVP: native window/save dialog/tray/notifications, single-instance,
+      unsigned NSIS pilot и loopback Media Core sidecar с динамическим портом/session token.
+- [ ] Добавить production code signing, подписанный updater manifest и проверенный rollback build;
+      pilot installer нельзя называть доверенным/подписанным до получения сертификата.
 - [ ] Добавить Eclipse Chat Media Adapter через `eclipse.media-job/progress/receipt.v1` с preview,
       human approval и без передачи файлов, cookies, stream URL или локальных путей в Chat.
 - [ ] Добавить bounded playlist preview и выбор до 10 элементов без cookies/raw CLI; все элементы
@@ -53,6 +55,19 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-23 - native local-first desktop pilot (v1.3.0)
+
+- Добавлен Tauri 2 shell с native window, tray lifecycle, single-instance mutex, уведомлением и
+  Windows save dialog; браузерный launcher остаётся fallback, а не маскируется под desktop app.
+- FastAPI/yt-dlp упаковывается PyInstaller sidecar и запускается только на случайном loopback-порту.
+  Случайный session token передаётся через environment, не URL/argv/storage/logs; запросы без него
+  получают `401`, а Tauri window не имеет произвольного shell/API capability.
+- Desktop сохраняет файл потоково во временный файл с лимитом 16 ГБ и проверяет job ID/filename;
+  Chat, webview и уведомление не получают локальный путь.
+- Зафиксированы Tauri CLI/Cargo зависимости, строгий CSP и собственная Eclipse Forge icon set.
+  Один root build script собирает sidecar и NSIS pilot; production signing/updater остаются
+  отдельным незакрытым gate.
+
 ### 2026-08-22 - observable long downloads and desktop direction (v1.2.3)
 
 - Long-running download получил явные фазы `preparing`, `downloading`, `processing`, `finalizing`;

@@ -12,6 +12,7 @@ import subprocess
 import threading
 import time
 import re
+import secrets
 import ipaddress
 import socket
 import sys
@@ -24,12 +25,15 @@ from typing import AsyncGenerator, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 import certifi
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
-DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+DOWNLOAD_DIR = os.path.abspath(
+    os.environ.get("ECLIPSE_MEDIA_DOWNLOAD_DIR")
+    or os.path.join(os.path.dirname(__file__), "downloads")
+)
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # Auto-detect ffmpeg from imageio_ffmpeg if not in PATH
@@ -74,6 +78,9 @@ WINDOWS_RESERVED_FILENAMES = {
     *(f"COM{index}" for index in range(1, 10)),
     *(f"LPT{index}" for index in range(1, 10)),
 }
+DESKTOP_SESSION_TOKEN = os.environ.get("ECLIPSE_MEDIA_SESSION_TOKEN", "")
+if DESKTOP_SESSION_TOKEN and not re.fullmatch(r"[A-Za-z0-9_-]{43,128}", DESKTOP_SESSION_TOKEN):
+    raise RuntimeError("ECLIPSE_MEDIA_SESSION_TOKEN must be a 43-128 character URL-safe token")
 
 
 # ─── Cleanup background task ──────────────────────────────────────────────────
@@ -110,14 +117,46 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.2.3", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.3.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:4173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://tauri.localhost",
+        "tauri://localhost",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def validate_desktop_session_token(provided: str | None, expected: str) -> bool:
+    """Constant-time desktop session authentication without logging either value."""
+    if not expected or not provided:
+        return False
+    return secrets.compare_digest(provided, expected)
+
+
+@app.middleware("http")
+async def require_desktop_session(request: Request, call_next):
+    if (
+        DESKTOP_SESSION_TOKEN
+        and request.method != "OPTIONS"
+        and not validate_desktop_session_token(
+            request.headers.get("X-Eclipse-Media-Session"),
+            DESKTOP_SESSION_TOKEN,
+        )
+    ):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Desktop session authentication required"},
+            headers={"Cache-Control": "no-store"},
+        )
+    return await call_next(request)
 
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -520,7 +559,7 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.2.3"}
+    return {"ok": True, "version": "1.3.0", "desktop_session": bool(DESKTOP_SESSION_TOKEN)}
 
 
 @app.post("/api/proxy-test")

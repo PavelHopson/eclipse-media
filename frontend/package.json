@@ -1,13 +1,17 @@
 {
   "name": "eclipse-media",
   "private": true,
-  "version": "1.2.3",
+  "version": "1.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "build": "tsc --noEmit && vite build",
+    "build:desktop": "tsc --noEmit && vite build --emptyOutDir false",
+    "desktop": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build --bundles nsis",
     "preview": "vite preview",
     "lint": "eslint ."
   },
@@ -18,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@tauri-apps/cli": "2.11.2",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

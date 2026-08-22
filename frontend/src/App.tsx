@@ -86,7 +86,7 @@ export default function App() {
           </div>
           <div className="relative">
             <span className="font-semibold text-sm tracking-tight text-glow" style={{ color: 'var(--text)' }}>Eclipse Media</span>
-            <span className="text-xs ml-2 mono" style={{ color: 'var(--text-dim)' }}>v1.2.3</span>
+            <span className="text-xs ml-2 mono" style={{ color: 'var(--text-dim)' }}>v1.3.0</span>
           </div>
         </div>
 

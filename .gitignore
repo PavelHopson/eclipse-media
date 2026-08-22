@@ -14,4 +14,12 @@ launcher/bin/
 launcher/obj/
 frontend/public/studio/eclipse-release/renders/
 frontend/public/studio/eclipse-release/snapshots/
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+frontend/src-tauri/binaries/*.exe
+frontend/src-tauri/icons/android/
+frontend/src-tauri/icons/ios/
+frontend/src-tauri/icons/icon.icns
+frontend/src-tauri/icons/Square*Logo.png
+frontend/src-tauri/icons/StoreLogo.png
 .DS_Store

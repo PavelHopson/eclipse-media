@@ -26,6 +26,7 @@ from main import (
     resolve_vk_external_url,
     sanitize_filename,
     start_download,
+    validate_desktop_session_token,
     validate_media_url,
     validate_proxy_url,
     vk_resolve_cache,
@@ -33,6 +34,14 @@ from main import (
 
 
 class MediaUrlValidationTests(unittest.TestCase):
+    def test_desktop_session_token_is_required_and_compared_exactly(self):
+        expected = "A" * 43
+
+        self.assertTrue(validate_desktop_session_token(expected, expected))
+        self.assertFalse(validate_desktop_session_token(None, expected))
+        self.assertFalse(validate_desktop_session_token("A" * 42, expected))
+        self.assertFalse(validate_desktop_session_token(expected, ""))
+
     def setUp(self):
         vk_resolve_cache.clear()
         jobs.clear()

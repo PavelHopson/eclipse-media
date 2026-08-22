@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AudioFormat, AudioQuality, DownloadItem, useDownloads } from '../store/downloads';
 import { deleteJob, fetchInfo, startDownload, subscribeProgress, getFileUrl, formatDuration } from '../api/media';
 import { TranscriptModal } from './TranscriptModal';
+import { isDesktopApp, saveCompletedFile } from '../api/desktopRuntime';
 
 const AUDIO_FORMATS: { value: AudioFormat; label: string; lossless?: boolean }[] = [
   { value: 'mp3', label: 'MP3' },
@@ -22,6 +23,9 @@ interface Props { item: DownloadItem; }
 export function VideoCard({ item }: Props) {
   const store = useDownloads();
   const [showTranscript, setShowTranscript] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedName, setSavedName] = useState<string | null>(null);
 
   async function handleFetch() {
     store.setStatus(item.id, 'fetching');
@@ -70,8 +74,22 @@ export function VideoCard({ item }: Props) {
     }
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!item.jobId) return;
+    if (isDesktopApp()) {
+      setSaveError(null);
+      setSavedName(null);
+      setSaving(true);
+      try {
+        const receipt = await saveCompletedFile(item.jobId, item.filename ?? 'download.mp4');
+        if (receipt.saved && receipt.filename) setSavedName(receipt.filename);
+      } catch (caught) {
+        setSaveError(caught instanceof Error ? caught.message : 'Не удалось сохранить файл');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     const a = document.createElement('a');
     a.href = getFileUrl(item.jobId);
     a.download = item.filename ?? 'download';
@@ -248,9 +266,13 @@ export function VideoCard({ item }: Props) {
               </span>
             )}
             {item.status === 'done' && (
-              <button onClick={handleSave} className="btn-success">
-                ✓ Сохранить
-              </button>
+              <>
+                <button onClick={handleSave} disabled={saving} className="btn-success">
+                  {saving ? <><span className="button-spinner" aria-hidden="true" /> Сохраняем…</> : '✓ Сохранить'}
+                </button>
+                {savedName && <span role="status" className="mono" style={{ color: 'var(--success)' }}>Сохранено: {savedName}</span>}
+                {saveError && <span role="alert" className="mono" style={{ color: 'var(--error)' }}>{saveError}</span>}
+              </>
             )}
           </div>
         </div>
