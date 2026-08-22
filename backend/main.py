@@ -306,6 +306,28 @@ def parse_progress_line(line: str) -> dict | None:
     return None
 
 
+def format_ytdlp_error(output_lines: list[str]) -> str:
+    """Return an actionable message without exposing URLs, query tokens, or raw CLI output."""
+    output = "\n".join(output_lines).lower()
+    if "unable to extract cursor data" in output:
+        return "VK изменил API списка видео. Откройте конкретный ролик и вставьте его прямую ссылку."
+    if "requested format is not available" in output:
+        return "Выбранное качество больше недоступно. Обновите данные ролика и выберите другое качество."
+    if "http error 403" in output or "forbidden" in output:
+        return "Источник отклонил загрузку (HTTP 403). Обновите данные и попробуйте другое качество."
+    if "http error 404" in output or "not found" in output:
+        return "Видео не найдено. Проверьте, что это прямая публичная ссылка на существующий ролик."
+    if any(marker in output for marker in ("sign in", "log in", "login required", "cookies")):
+        return "Ролик требует авторизацию. Безопасный режим без cookies аккаунта его не скачает."
+    if "unsupported url" in output:
+        return "Эта ссылка пока не поддерживается. Используйте прямую публичную ссылку на ролик."
+    if any(marker in output for marker in ("unable to download webpage", "network is unreachable", "timed out")):
+        return "Не удалось подключиться к источнику. Проверьте сеть или proxy и повторите."
+    if "ffmpeg" in output and any(marker in output for marker in ("not found", "not installed")):
+        return "FFmpeg не найден. Установите FFmpeg и перезапустите Eclipse Media."
+    return "Источник изменился или временно недоступен. Обновите данные ролика и повторите."
+
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
@@ -344,8 +366,7 @@ def get_info(req: InfoRequest):
         raise HTTPException(500, "yt-dlp не установлен")
 
     if result.returncode != 0:
-        err = result.stderr.strip().split("\n")[-1] if result.stderr.strip() else "Неизвестная ошибка"
-        raise HTTPException(400, err)
+        raise HTTPException(400, format_ytdlp_error(result.stderr.splitlines()))
 
     try:
         info = json.loads(result.stdout)
@@ -468,7 +489,9 @@ def _build_download_command(
         cmd += ["-x", "--audio-format", safe_fmt]
         cmd += _build_audio_quality_flags(safe_fmt, audio_quality)
     elif format_id:
-        cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
+        # Some VK formats already contain audio, while YouTube commonly exposes separate tracks.
+        # Keep the selected quality, but fail over to that combined stream before a generic best.
+        cmd += ["-f", f"{format_id}+bestaudio/{format_id}/best", "--merge-output-format", "mp4"]
     else:
         cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
 
@@ -512,7 +535,11 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
                 return
             job["process"] = proc
 
+        diagnostic_lines: list[str] = []
         for line in proc.stdout:  # type: ignore[union-attr]
+            diagnostic_lines.append(line.strip())
+            if len(diagnostic_lines) > 40:
+                diagnostic_lines.pop(0)
             parsed = parse_progress_line(line)
             if parsed:
                 job["progress"] = parsed.get("percent", job["progress"])
@@ -523,7 +550,7 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
 
         if proc.returncode != 0:
             job["status"] = "error"
-            job["error"] = "yt-dlp завершился с ошибкой"
+            job["error"] = format_ytdlp_error(diagnostic_lines)
             return
 
     except subprocess.TimeoutExpired:

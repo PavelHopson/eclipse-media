@@ -1,6 +1,7 @@
 import socket
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -8,9 +9,12 @@ from pydantic import ValidationError
 
 from main import (
     DownloadRequest,
+    InfoRequest,
     TranscriptRequest,
     _build_download_command,
     _ytdlp_base,
+    format_ytdlp_error,
+    get_info,
     get_transcript,
     start_download,
     validate_media_url,
@@ -88,6 +92,39 @@ class MediaUrlValidationTests(unittest.TestCase):
         self.assertIn("--convert-thumbnails", command)
         self.assertNotIn("--write-subs", command)
         self.assertEqual(command[-1], "https://example.com/video")
+
+    def test_selected_video_format_falls_back_to_combined_stream(self):
+        command = _build_download_command(
+            "https://example.com/video", "downloads/job.%(ext)s", "video", "vk-1080",
+            "mp3", "best", None, "standard", "none", "en",
+        )
+        self.assertEqual(command[command.index("-f") + 1], "vk-1080+bestaudio/vk-1080/best")
+
+    def test_download_errors_are_actionable_and_do_not_echo_untrusted_output(self):
+        secret_url = "https://media.example/video?token=do-not-expose"
+        self.assertEqual(
+            format_ytdlp_error([f"ERROR: HTTP Error 403: Forbidden {secret_url}"]),
+            "Источник отклонил загрузку (HTTP 403). Обновите данные и попробуйте другое качество.",
+        )
+        self.assertNotIn("token", format_ytdlp_error([f"ERROR: unknown {secret_url}"]))
+        self.assertIn("прямую ссылку", format_ytdlp_error(["Unable to extract cursor data"]))
+        self.assertIn("не найдено", format_ytdlp_error([f"HTTP Error 404: Not Found {secret_url}"]))
+
+    @patch("main.subprocess.run")
+    @patch("main.socket.getaddrinfo")
+    def test_info_error_does_not_expose_source_query_tokens(self, getaddrinfo, run):
+        getaddrinfo.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+        run.return_value = SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="ERROR: HTTP Error 403 https://media.example/video?token=do-not-expose",
+        )
+
+        with self.assertRaises(HTTPException) as error:
+            get_info(InfoRequest(url="https://media.example/video?token=do-not-expose"))
+
+        self.assertNotIn("token", str(error.exception.detail))
+        self.assertIn("HTTP 403", str(error.exception.detail))
 
     def test_subtitle_modes_are_explicit_and_language_is_a_single_argument(self):
         manual = _build_download_command(

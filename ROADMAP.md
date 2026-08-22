@@ -10,7 +10,7 @@
 
 - [x] Добавить Media Intake: четыре понятных результата, project context, заметки и локальную очередь.
 - [x] Добавить rights gate, public URL/proxy validation, максимум три активные задачи и process cancellation.
-- [x] Закрепить `yt-dlp==2026.3.17`; remote EJS components сделать opt-in, а CI actions — SHA-pinned.
+- [x] Закрепить `yt-dlp==2026.7.4`; remote EJS components сделать opt-in, а CI actions — SHA-pinned.
 - [x] Добавить HyperFrames-ready release-video workspace с browser preview и offline contract check.
 - [x] Вынести видео-студию в отдельный понятный режим web UI и адаптировать desktop/mobile layout.
 - [x] Добавить CDN-free fallback, чтобы preview не превращался в чёрный экран при сетевом сбое.
@@ -49,6 +49,17 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-22 - actionable VK download recovery
+
+- Обновлён exact stable pin `yt-dlp==2026.7.4`; nightly/master и remote components не включались.
+- FastAPI обновлён до exact `0.141.1`, чтобы убрать известные advisories транзитивного Starlette;
+  совместимость подтверждается полным backend regression gate и `pip-audit`.
+- Выбранный VK-поток теперь допускает безопасный fallback на тот же combined format до общего `best`.
+- Ошибки проверки и загрузки преобразуются в bounded actionable сообщения без URL query tokens и
+  raw extractor output; error card получила явное действие «Обновить данные».
+- Профили и каналы VK остаются неподдерживаемыми из-за upstream cursor extractor failure;
+  рабочим входом остаётся прямая публичная ссылка на отдельный ролик.
+
 ### 2026-08-22 - guided download workspace and Windows launcher
 
 - Главный экран получил явную иерархию, трёхшаговый flow, отдельную очередь и компактную

@@ -107,9 +107,14 @@ export function VideoCard({ item }: Props) {
             <p className="text-xs truncate mono" style={{ color: 'var(--text-dim)' }}>{item.url}</p>
           )}
           {item.status === 'error' && (
-            <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: 'var(--error)' }}>
-              <span>✕</span> {item.error}
-            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <p className="text-xs flex items-center gap-1" style={{ color: 'var(--error)' }}>
+                <span>✕</span> {item.error}
+              </p>
+              <button onClick={handleFetch} className="btn-ghost" style={{ padding: '4px 8px', fontSize: '10px' }}>
+                ↻ Обновить данные
+              </button>
+            </div>
           )}
         </div>
 
