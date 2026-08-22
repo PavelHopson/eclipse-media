@@ -49,6 +49,19 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-22 - VK external OK.ru resolver (v1.2.1)
+
+- Прямые публичные ссылки `vk.com/video<owner>_<id>` и `vkvideo.ru/video<owner>_<id>` теперь
+  проверяются через фиксированные официальные VK endpoints; внешний OK.ru embed передаётся
+  существующему закреплённому `yt-dlp` extractor вместо устаревшего `player.params`.
+- Resolver не использует cookies, OAuth или пользовательские аккаунты: анонимный read-only token
+  хранится только в памяти вызова, не логируется и не сохраняется; app secret в коде отсутствует.
+- Внешний переход ограничен HTTPS-хостами `ok.ru` / `www.ok.ru` и путём
+  `video(embed)/<digits>`; redirects, ответы и cache имеют фиксированные allowlist/limits.
+- Exact regression `video-168673382_456239188` разрешается в публичный OK embed `1903142701709`;
+  metadata показывает 144p–720p, bounded `yt-dlp --test` успешно получил и объединил по 10 KiB
+  video/audio. Полный пользовательский файл в проверке не скачивался.
+
 ### 2026-08-22 - actionable VK download recovery
 
 - Обновлён exact stable pin `yt-dlp==2026.7.4`; nightly/master и remote components не включались.

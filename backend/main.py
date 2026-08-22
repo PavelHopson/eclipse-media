@@ -15,10 +15,15 @@ import re
 import ipaddress
 import socket
 import sys
+import ssl
+import urllib.error
+import urllib.parse
+import urllib.request
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Literal
 from urllib.parse import urlsplit, urlunsplit
 
+import certifi
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
@@ -52,6 +57,16 @@ BLOCKED_HOSTS = {
     "instance-data",
     "169.254.169.254",
 }
+VK_VIDEO_HOSTS = {"vk.com", "www.vk.com", "m.vk.com", "vkvideo.ru", "www.vkvideo.ru"}
+VK_VIDEO_PATH_RE = re.compile(r"^/video(?P<owner>-?\d+)_(?P<video>\d+)/?$")
+VK_TOKEN_ENDPOINT = "https://login.vk.com/"
+VK_API_ENDPOINT = "https://api.vk.com/method/video.getByIds?v=5.282&client_id=52461373"
+VK_PUBLIC_WEB_CLIENT_ID = "52461373"
+VK_RESPONSE_LIMIT = 1_000_000
+VK_RESOLVE_CACHE_TTL = 600
+VK_RESOLVE_CACHE_LIMIT = 64
+vk_resolve_cache: dict[str, tuple[float, str]] = {}
+vk_resolve_cache_lock = threading.Lock()
 
 
 # ─── Cleanup background task ──────────────────────────────────────────────────
@@ -88,7 +103,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.2.0", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.2.1", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -212,6 +227,138 @@ def validate_proxy_url(raw_proxy: str | None) -> str | None:
     _validate_public_host(parsed.hostname)
     return proxy
 
+
+class _FixedHostRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Allow HTTPS redirects only between the fixed VK hosts used by the resolver."""
+
+    allowed_hosts = {"login.vk.com", "api.vk.com"}
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+        parsed = urlsplit(newurl)
+        if parsed.scheme != "https" or parsed.hostname not in self.allowed_hosts:
+            raise urllib.error.HTTPError(newurl, code, "Небезопасный redirect VK", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _vk_opener(proxy: str | None) -> urllib.request.OpenerDirector:
+    handlers: list[urllib.request.BaseHandler] = [
+        urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=certifi.where())),
+        _FixedHostRedirectHandler(),
+    ]
+    if proxy and urlsplit(proxy).scheme in {"http", "https"}:
+        handlers.insert(0, urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+    else:
+        handlers.insert(0, urllib.request.ProxyHandler({}))
+    return urllib.request.build_opener(*handlers)
+
+
+def _read_bounded_json(response) -> dict:  # noqa: ANN001
+    payload = response.read(VK_RESPONSE_LIMIT + 1)
+    if len(payload) > VK_RESPONSE_LIMIT:
+        raise ValueError("VK response exceeds the size limit")
+    decoded = json.loads(payload.decode("utf-8"))
+    if not isinstance(decoded, dict):
+        raise ValueError("VK returned an unexpected response")
+    return decoded
+
+
+def _fetch_vk_guest_token(proxy: str | None) -> str:
+    query = urllib.parse.urlencode({
+        "act": "get_anonym_token",
+        "client_id": VK_PUBLIC_WEB_CLIENT_ID,
+        "scopes": "scopes=audio_anonymous,video_anonymous,photos_anonymous,profile_anonymous",
+    })
+    request = urllib.request.Request(
+        f"{VK_TOKEN_ENDPOINT}?{query}",
+        headers={"Accept": "application/json"},
+        method="GET",
+    )
+    with _vk_opener(proxy).open(request, timeout=20) as response:
+        payload = _read_bounded_json(response)
+    data = payload.get("data")
+    token = data.get("access_token") if isinstance(data, dict) else None
+    if not isinstance(token, str) or not token.startswith("anonym.") or len(token) > 4096:
+        raise ValueError("VK did not return a valid guest token")
+    return token
+
+
+def _fetch_vk_video_item(token: str, video_id: str, proxy: str | None) -> dict:
+    body = urllib.parse.urlencode({
+        "access_token": token,
+        "videos": video_id,
+        "video_fields": "files",
+    }).encode("ascii")
+    request = urllib.request.Request(
+        VK_API_ENDPOINT,
+        data=body,
+        headers={"Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    with _vk_opener(proxy).open(request, timeout=20) as response:
+        payload = _read_bounded_json(response)
+    response_data = payload.get("response")
+    items = response_data.get("items", []) if isinstance(response_data, dict) else []
+    if not isinstance(items, list) or not items or not isinstance(items[0], dict):
+        raise ValueError("VK did not return public video metadata")
+    return items[0]
+
+
+def resolve_vk_external_url(url: str, proxy: str | None = None) -> str:
+    """Resolve a public VK wrapper to a strict OK.ru embed URL without cookies or OAuth."""
+    parsed = urlsplit(url)
+    match = VK_VIDEO_PATH_RE.fullmatch(parsed.path)
+    if parsed.hostname not in VK_VIDEO_HOSTS or not match:
+        return url
+    # urllib has no SOCKS transport. Never bypass a proxy explicitly selected by the user.
+    if proxy and urlsplit(proxy).scheme in {"socks5", "socks5h"}:
+        return url
+
+    now = time.monotonic()
+    with vk_resolve_cache_lock:
+        cached = vk_resolve_cache.get(url)
+        if cached and cached[0] > now:
+            return cached[1]
+
+    video_id = f"{match.group('owner')}_{match.group('video')}"
+    try:
+        token = _fetch_vk_guest_token(proxy)
+        item = _fetch_vk_video_item(token, video_id, proxy)
+    except (OSError, TimeoutError, ValueError, json.JSONDecodeError):
+        return url
+
+    files = item.get("files")
+    external = files.get("external") if isinstance(files, dict) else None
+    external = external or item.get("player")
+    if not isinstance(external, str) or len(external) > MAX_URL_LENGTH:
+        return url
+    try:
+        external_parsed = urlsplit(external)
+        external_port = external_parsed.port
+    except ValueError:
+        return url
+    external_match = re.fullmatch(r"/video(?:embed)?/(\d+)/?", external_parsed.path)
+    if (
+        external_parsed.scheme != "https"
+        or external_parsed.hostname not in {"ok.ru", "www.ok.ru"}
+        or external_parsed.username
+        or external_parsed.password
+        or external_port is not None
+        or not external_match
+    ):
+        return url
+
+    resolved = f"https://ok.ru/videoembed/{external_match.group(1)}"
+    with vk_resolve_cache_lock:
+        if len(vk_resolve_cache) >= VK_RESOLVE_CACHE_LIMIT:
+            expired = [key for key, (expires, _) in vk_resolve_cache.items() if expires <= now]
+            for key in expired:
+                vk_resolve_cache.pop(key, None)
+            if len(vk_resolve_cache) >= VK_RESOLVE_CACHE_LIMIT:
+                vk_resolve_cache.pop(next(iter(vk_resolve_cache)))
+        vk_resolve_cache[url] = (now + VK_RESOLVE_CACHE_TTL, resolved)
+    return resolved
+
+
 def parse_srt(content: str) -> list[dict]:
     """
     Парсит SRT-субтитры в список сегментов.
@@ -334,7 +481,7 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.2.0"}
+    return {"ok": True, "version": "1.2.1"}
 
 
 @app.post("/api/proxy-test")
@@ -358,6 +505,7 @@ def proxy_test(req: ProxyTestRequest):
 def get_info(req: InfoRequest):
     url = validate_media_url(req.url)
     proxy = validate_proxy_url(req.proxy)
+    url = resolve_vk_external_url(url, proxy)
 
     cmd = _ytdlp_base(proxy) + ["-j", url]
     try:
@@ -421,6 +569,7 @@ def start_download(req: DownloadRequest):
         raise HTTPException(400, "Название слишком длинное")
     url = validate_media_url(req.url)
     proxy = validate_proxy_url(req.proxy)
+    url = resolve_vk_external_url(url, proxy)
 
     job_id = uuid.uuid4().hex
     with jobs_lock:
@@ -670,6 +819,7 @@ def get_transcript(req: TranscriptRequest):
         raise HTTPException(403, "Подтвердите право на обработку материала")
     url = validate_media_url(req.url)
     proxy = validate_proxy_url(req.proxy)
+    url = resolve_vk_external_url(url, proxy)
     if not re.fullmatch(r"(?:auto|[A-Za-z0-9._-]{1,20})", req.lang):
         raise HTTPException(400, "Некорректный код языка")
 

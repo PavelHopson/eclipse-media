@@ -16,13 +16,18 @@ from main import (
     format_ytdlp_error,
     get_info,
     get_transcript,
+    resolve_vk_external_url,
     start_download,
     validate_media_url,
     validate_proxy_url,
+    vk_resolve_cache,
 )
 
 
 class MediaUrlValidationTests(unittest.TestCase):
+    def setUp(self):
+        vk_resolve_cache.clear()
+
     @patch("main.socket.getaddrinfo")
     def test_accepts_public_https_and_removes_fragment(self, getaddrinfo):
         getaddrinfo.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
@@ -118,6 +123,43 @@ class MediaUrlValidationTests(unittest.TestCase):
         )
         self.assertNotIn("--no-check-certificates", command)
         self.assertNotIn("--no-check-certificate", command)
+
+    @patch("main._fetch_vk_video_item")
+    @patch("main._fetch_vk_guest_token", return_value="anonym.test-token")
+    def test_resolves_public_vk_external_ok_video_without_cookies(self, guest_token, video_item):
+        video_item.return_value = {
+            "platform": "ok.ru",
+            "files": {"external": "https://ok.ru/videoembed/1903142701709?temporary=removed"},
+        }
+
+        resolved = resolve_vk_external_url("https://vkvideo.ru/video-168673382_456239188")
+
+        self.assertEqual(resolved, "https://ok.ru/videoembed/1903142701709")
+        guest_token.assert_called_once_with(None)
+        video_item.assert_called_once_with("anonym.test-token", "-168673382_456239188", None)
+
+    @patch("main._fetch_vk_video_item")
+    @patch("main._fetch_vk_guest_token", return_value="anonym.test-token")
+    def test_vk_resolver_rejects_untrusted_external_urls(self, _guest_token, video_item):
+        original = "https://vk.com/video-1_2"
+
+        for external in (
+            "https://attacker.example/video/123",
+            "https://user:password@ok.ru/videoembed/123",
+            "http://ok.ru/videoembed/123",
+        ):
+            with self.subTest(external=external):
+                video_item.return_value = {"files": {"external": external}}
+                self.assertEqual(resolve_vk_external_url(original), original)
+
+    @patch("main._fetch_vk_guest_token")
+    def test_vk_resolver_does_not_touch_channels_or_bypass_socks_proxy(self, guest_token):
+        channel = "https://vkvideo.ru/@akari_group/all"
+        direct = "https://vkvideo.ru/video-168673382_456239188"
+
+        self.assertEqual(resolve_vk_external_url(channel), channel)
+        self.assertEqual(resolve_vk_external_url(direct, "socks5://proxy.example:1080"), direct)
+        guest_token.assert_not_called()
 
     @patch("main.subprocess.run")
     @patch("main.socket.getaddrinfo")
