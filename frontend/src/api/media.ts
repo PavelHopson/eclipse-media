@@ -69,6 +69,9 @@ export async function startDownload(params: {
   audio_quality?: string;
   proxy?: string;
   rights_confirmed: boolean;
+  preset?: 'standard' | 'archive';
+  subtitle_mode?: 'none' | 'manual' | 'auto';
+  subtitle_lang?: string;
 }): Promise<string> {
   const res = await apiFetch<{ ok: boolean; data: { job_id: string } }>('/download', {
     method: 'POST',

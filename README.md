@@ -14,6 +14,8 @@
 - Media Intake: ссылка → цель → проект → локальная очередь → одно следующее действие
 - Обязательное подтверждение прав перед скачиванием и транскрипцией
 - Скачивание MP4 (с выбором качества) и MP3
+- Archive preset: metadata и thumbnail в итоговом файле
+- Встраивание авторских или автоматических субтитров выбранного языка
 - Реальный прогресс через Server-Sent Events
 - Массовая загрузка — несколько ссылок одновременно
 - Авто-дедупликация URL
@@ -60,6 +62,11 @@ Backend блокирует localhost, private/link-local/metadata IP, URL с cre
 Remote runtime components `yt-dlp` выключены по умолчанию. Если конкретный extractor действительно
 требует EJS с GitHub, администратор может осознанно включить его через
 `ECLIPSE_MEDIA_ALLOW_REMOTE_COMPONENTS=true` после отдельного supply-chain review.
+
+В карточке видео раздел **«Дополнительно»** предлагает только allowlisted настройки: обычный или
+архивный файл и один режим субтитров. Произвольные CLI arguments, server output paths, cookies и
+автоматическое обновление backend намеренно отсутствуют. Сравнение с Cube YouTube Downloader и
+bounded план playlists: [`docs/youtube-dl-wpf-gap-analysis.md`](docs/youtube-dl-wpf-gap-analysis.md).
 
 ## Release-video pipeline
 

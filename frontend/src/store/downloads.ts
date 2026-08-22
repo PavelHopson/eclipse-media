@@ -12,6 +12,8 @@ export type DownloadStatus =
 
 export type AudioFormat = 'mp3' | 'flac' | 'opus' | 'm4a' | 'wav';
 export type AudioQuality = 'best' | '320' | '192' | '128';
+export type DownloadPreset = 'standard' | 'archive';
+export type SubtitleMode = 'none' | 'manual' | 'auto';
 export type MediaIntent = 'watch' | 'video' | 'audio' | 'transcript';
 export type MediaRequestStatus = 'planned' | 'in_progress' | 'done';
 
@@ -44,6 +46,9 @@ export interface DownloadItem {
   error: string | null;
   createdAt: number;
   rightsConfirmed: boolean;
+  preset: DownloadPreset;
+  subtitleMode: SubtitleMode;
+  subtitleLang: string;
   requestId: string | null;
 }
 
@@ -71,6 +76,9 @@ interface DownloadsState {
   setAudioFormat: (id: string, audioFormat: AudioFormat) => void;
   setAudioQuality: (id: string, audioQuality: AudioQuality) => void;
   setRightsConfirmed: (id: string, confirmed: boolean) => void;
+  setPreset: (id: string, preset: DownloadPreset) => void;
+  setSubtitleMode: (id: string, mode: SubtitleMode) => void;
+  setSubtitleLang: (id: string, lang: string) => void;
   setJobId: (id: string, jobId: string) => void;
   setProgress: (id: string, percent: number, speed: string, eta: string) => void;
   setDone: (id: string, filename: string) => void;
@@ -117,6 +125,9 @@ export const useDownloads = create<DownloadsState>()(
               error: null,
               createdAt: Date.now(),
               rightsConfirmed: options?.rightsConfirmed ?? false,
+              preset: 'standard',
+              subtitleMode: 'none',
+              subtitleLang: 'en',
               requestId: options?.requestId ?? null,
             },
           ],
@@ -145,6 +156,15 @@ export const useDownloads = create<DownloadsState>()(
       })),
       setRightsConfirmed: (id, rightsConfirmed) => set((state) => ({
         items: state.items.map((item) => item.id === id ? { ...item, rightsConfirmed } : item),
+      })),
+      setPreset: (id, preset) => set((state) => ({
+        items: state.items.map((item) => item.id === id ? { ...item, preset } : item),
+      })),
+      setSubtitleMode: (id, subtitleMode) => set((state) => ({
+        items: state.items.map((item) => item.id === id ? { ...item, subtitleMode } : item),
+      })),
+      setSubtitleLang: (id, subtitleLang) => set((state) => ({
+        items: state.items.map((item) => item.id === id ? { ...item, subtitleLang } : item),
       })),
       setJobId: (id, jobId) => set((state) => ({
         items: state.items.map((item) => item.id === id ? { ...item, jobId } : item),

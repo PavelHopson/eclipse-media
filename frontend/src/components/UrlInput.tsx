@@ -25,19 +25,6 @@ export function UrlInput({ onSubmit, loading }: Props) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
   }
 
-  function handlePaste(e: React.ClipboardEvent) {
-    const text = e.clipboardData.getData('text');
-    if (text.startsWith('http') && !value) {
-      e.preventDefault();
-      setValue(text);
-      setTimeout(() => {
-        const urls = text.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
-        if (urls.length > 0) onSubmit(urls);
-        setValue('');
-      }, 100);
-    }
-  }
-
   return (
     <div
       className="rounded-2xl overflow-hidden transition-all"
@@ -57,7 +44,6 @@ export function UrlInput({ onSubmit, loading }: Props) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
         placeholder="Вставьте ссылку на видео..."
         rows={1}
         className="w-full px-5 pt-4 pb-2 text-sm resize-none outline-none"

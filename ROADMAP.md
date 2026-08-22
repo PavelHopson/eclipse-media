@@ -30,6 +30,9 @@
 
 ## P1
 
+- [ ] Добавить bounded playlist preview и выбор до 10 элементов без cookies/raw CLI; все элементы
+      проходят общий rights gate, очередь максимум из трёх jobs, TTL и cancellation.
+- [ ] Расширить format picker проверяемыми codec/FPS/filesize, не раскрывая raw yt-dlp expressions.
 - [ ] Добавить server-side request queue с пользователями, ролями и audit trail; текущая очередь local-only.
 - [ ] Добавить container egress policy и redirect-aware network isolation поверх application SSRF checks.
 - [ ] PR/roadmap -> storyboard draft через Eclipse Chat approval flow.
@@ -44,6 +47,18 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-22 - bounded archive download preset
+
+- Clean-room comparison with GPLv3 Cube YouTube Downloader documented the real parity and gaps.
+- Added an allowlisted Archive preset for embedded metadata and thumbnail plus explicit manual/auto
+  subtitle embedding for one validated language.
+- Raw CLI arguments, arbitrary server paths, cookies and backend auto-update remain forbidden;
+  unknown API fields and subtitle argument injection fail closed.
+- Backend launches the pinned `yt_dlp` module through its current Python runtime instead of trusting
+  an executable resolved from `PATH`.
+- Removed paste-triggered auto-submit that could race the visible button and enqueue the same URL twice.
+- Playlist selection and richer codec/FPS/filesize discovery are separated into bounded P1 slices.
+
 ### 2026-08-20 - preview-first AI video ads
 
 - Added strict local import for `eclipse.video-ad-plan.v1` with a fixed 15-second timeline and unknown-field rejection.

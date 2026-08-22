@@ -47,6 +47,9 @@ export function VideoCard({ item }: Props) {
         audio_quality: item.format === 'audio' ? item.audioQuality : undefined,
         proxy: store.proxy || undefined,
         rights_confirmed: item.rightsConfirmed,
+        preset: item.preset,
+        subtitle_mode: item.format === 'video' ? item.subtitleMode : 'none',
+        subtitle_lang: item.subtitleLang,
       });
       store.setJobId(item.id, jobId);
       const unsub = subscribeProgress(jobId, (event) => {
@@ -69,6 +72,7 @@ export function VideoCard({ item }: Props) {
   }
 
   const disabled = item.status === 'downloading' || item.status === 'done';
+  const subtitleLangValid = item.subtitleMode === 'none' || /^[A-Za-z0-9._-]{1,20}$/.test(item.subtitleLang);
 
   return (
     <div
@@ -166,6 +170,35 @@ export function VideoCard({ item }: Props) {
             </select>
           )}
 
+          <details className="download-options">
+            <summary>Дополнительно</summary>
+            <div className="download-options__grid">
+              <label>
+                <span>Файл</span>
+                <select value={item.preset} onChange={(event) => store.setPreset(item.id, event.target.value as 'standard' | 'archive')} disabled={disabled}>
+                  <option value="standard">Обычный</option>
+                  <option value="archive">Архивный · metadata + обложка</option>
+                </select>
+              </label>
+              {item.format === 'video' && <label>
+                <span>Субтитры</span>
+                <select value={item.subtitleMode} onChange={(event) => store.setSubtitleMode(item.id, event.target.value as 'none' | 'manual' | 'auto')} disabled={disabled}>
+                  <option value="none">Не добавлять</option>
+                  <option value="manual">Авторские</option>
+                  <option value="auto">Автоматические</option>
+                </select>
+              </label>}
+              {item.format === 'video' && item.subtitleMode !== 'none' && (
+                <label>
+                  <span>Язык</span>
+                  <input value={item.subtitleLang} onChange={(event) => store.setSubtitleLang(item.id, event.target.value)} maxLength={20} pattern="[A-Za-z0-9._-]+" placeholder="ru или en-US" aria-invalid={!subtitleLangValid} disabled={disabled} />
+                  {!subtitleLangValid && <small className="download-options__error">Например: ru, en или en-US</small>}
+                </label>
+              )}
+            </div>
+            <p>Только проверенные параметры yt-dlp. Произвольные CLI-команды отключены.</p>
+          </details>
+
           {/* Action buttons */}
           <div className="ml-auto flex items-center gap-2">
             {item.info && (
@@ -175,7 +208,7 @@ export function VideoCard({ item }: Props) {
             )}
 
             {item.status === 'ready' && (
-              <button onClick={handleDownload} disabled={!item.rightsConfirmed} className="btn-primary btn-eclipse">
+              <button onClick={handleDownload} disabled={!item.rightsConfirmed || !subtitleLangValid} className="btn-primary btn-eclipse">
                 ↓ Скачать
               </button>
             )}

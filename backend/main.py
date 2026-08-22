@@ -14,14 +14,15 @@ import time
 import re
 import ipaddress
 import socket
+import sys
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -29,7 +30,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # Auto-detect ffmpeg from imageio_ffmpeg if not in PATH
 try:
     subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=5)
-except (FileNotFoundError, subprocess.TimeoutExpired):
+except (OSError, subprocess.TimeoutExpired):
     try:
         import imageio_ffmpeg
         ffmpeg_dir = os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe())
@@ -104,6 +105,8 @@ class InfoRequest(BaseModel):
     proxy: str | None = None
 
 class DownloadRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     url: str
     format: str = "video"        # "video" | "audio"
     format_id: str | None = None
@@ -112,6 +115,9 @@ class DownloadRequest(BaseModel):
     audio_quality: str = "best"  # "best" | "320" | "192" | "128"
     proxy: str | None = None     # "socks5://host:port" | "http://host:port"
     rights_confirmed: bool = False
+    preset: Literal["standard", "archive"] = "standard"
+    subtitle_mode: Literal["none", "manual", "auto"] = "none"
+    subtitle_lang: str = "en"
 
 class TranscriptRequest(BaseModel):
     url: str
@@ -262,7 +268,7 @@ def srt_to_plain_text(segments: list[dict]) -> str:
 
 def _ytdlp_base(proxy: str | None = None) -> list[str]:
     """Base yt-dlp flags. Runtime network code is opt-in, never implicit."""
-    cmd = ["yt-dlp", "--no-playlist", "--no-warnings", "--js-runtimes", "node"]
+    cmd = [sys.executable, "-m", "yt_dlp", "--no-playlist", "--no-warnings", "--js-runtimes", "node"]
     if os.getenv("ECLIPSE_MEDIA_ALLOW_REMOTE_COMPONENTS", "").lower() in {"1", "true", "yes"}:
         cmd += ["--remote-components", "ejs:github"]
     if proxy and proxy.strip():
@@ -378,16 +384,20 @@ def get_info(req: InfoRequest):
 def start_download(req: DownloadRequest):
     if not req.rights_confirmed:
         raise HTTPException(403, "Подтвердите право на скачивание материала")
-    url = validate_media_url(req.url)
-    proxy = validate_proxy_url(req.proxy)
     if req.format not in {"video", "audio"}:
         raise HTTPException(400, "Неизвестный формат загрузки")
     if req.format_id and not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", req.format_id):
         raise HTTPException(400, "Некорректный ID формата")
     if req.audio_format not in AUDIO_FORMAT_EXT or req.audio_quality not in {"best", "320", "192", "128"}:
         raise HTTPException(400, "Некорректные настройки аудио")
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,20}", req.subtitle_lang):
+        raise HTTPException(400, "Некорректный код языка субтитров")
+    if req.format == "audio" and req.subtitle_mode != "none":
+        raise HTTPException(400, "Субтитры можно встроить только в видео")
     if len(req.title) > 300:
         raise HTTPException(400, "Название слишком длинное")
+    url = validate_media_url(req.url)
+    proxy = validate_proxy_url(req.proxy)
 
     job_id = uuid.uuid4().hex
     with jobs_lock:
@@ -411,7 +421,8 @@ def start_download(req: DownloadRequest):
     thread = threading.Thread(
         target=_run_download,
         args=(job_id, url, req.format, req.format_id, req.title,
-              req.audio_format, req.audio_quality, proxy),
+              req.audio_format, req.audio_quality, proxy, req.preset,
+              req.subtitle_mode, req.subtitle_lang),
         daemon=True,
     )
     thread.start()
@@ -437,15 +448,19 @@ def _build_audio_quality_flags(audio_fmt: str, quality: str) -> list[str]:
     return ["--audio-quality", f"{quality}K"]
 
 
-def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title: str,
-                  audio_fmt: str = "mp3", audio_quality: str = "best",
-                  proxy: str | None = None):
-    with jobs_lock:
-        job = jobs.get(job_id)
-    if not job:
-        return
-    out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
-
+def _build_download_command(
+    url: str,
+    out_template: str,
+    fmt: str,
+    format_id: str | None,
+    audio_fmt: str,
+    audio_quality: str,
+    proxy: str | None,
+    preset: str,
+    subtitle_mode: str,
+    subtitle_lang: str,
+) -> list[str]:
+    """Build an allowlisted yt-dlp command without accepting raw CLI arguments."""
     cmd = _ytdlp_base(proxy) + ["-o", out_template]
 
     if fmt == "audio":
@@ -457,7 +472,31 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
     else:
         cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
 
+    if preset == "archive":
+        cmd += ["--embed-metadata", "--embed-thumbnail", "--convert-thumbnails", "jpg"]
+
+    if fmt == "video" and subtitle_mode != "none":
+        cmd += ["--sub-langs", subtitle_lang, "--sub-format", "srt/best", "--embed-subs"]
+        cmd.append("--write-auto-subs" if subtitle_mode == "auto" else "--write-subs")
+
     cmd.append(url)
+    return cmd
+
+
+def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title: str,
+                  audio_fmt: str = "mp3", audio_quality: str = "best",
+                  proxy: str | None = None, preset: str = "standard",
+                  subtitle_mode: str = "none", subtitle_lang: str = "en"):
+    with jobs_lock:
+        job = jobs.get(job_id)
+    if not job:
+        return
+    out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
+
+    cmd = _build_download_command(
+        url, out_template, fmt, format_id, audio_fmt, audio_quality,
+        proxy, preset, subtitle_mode, subtitle_lang,
+    )
 
     try:
         proc = subprocess.Popen(
