@@ -59,6 +59,8 @@
   raw extractor output; error card получила явное действие «Обновить данные».
 - Профили и каналы VK остаются неподдерживаемыми из-за upstream cursor extractor failure;
   рабочим входом остаётся прямая публичная ссылка на отдельный ролик.
+- Для OK.ru закреплён Mozilla CA bundle `certifi==2026.7.22`: progressive MP4 больше не падает
+  с `CERTIFICATE_VERIFY_FAILED`; TLS validation остаётся обязательной и никогда не отключается.
 
 ### 2026-08-22 - guided download workspace and Windows launcher
 

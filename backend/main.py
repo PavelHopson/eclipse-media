@@ -309,6 +309,8 @@ def parse_progress_line(line: str) -> dict | None:
 def format_ytdlp_error(output_lines: list[str]) -> str:
     """Return an actionable message without exposing URLs, query tokens, or raw CLI output."""
     output = "\n".join(output_lines).lower()
+    if "certificate_verify_failed" in output or "certificate verify failed" in output:
+        return "Не удалось проверить TLS-сертификат источника. Перезапустите Eclipse Media для обновления CA bundle."
     if "unable to extract cursor data" in output:
         return "VK изменил API списка видео. Откройте конкретный ролик и вставьте его прямую ссылку."
     if "requested format is not available" in output:

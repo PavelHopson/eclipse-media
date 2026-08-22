@@ -109,6 +109,15 @@ class MediaUrlValidationTests(unittest.TestCase):
         self.assertNotIn("token", format_ytdlp_error([f"ERROR: unknown {secret_url}"]))
         self.assertIn("прямую ссылку", format_ytdlp_error(["Unable to extract cursor data"]))
         self.assertIn("не найдено", format_ytdlp_error([f"HTTP Error 404: Not Found {secret_url}"]))
+        self.assertIn("TLS-сертификат", format_ytdlp_error(["CERTIFICATE_VERIFY_FAILED"]))
+
+    def test_tls_verification_is_never_disabled(self):
+        command = _build_download_command(
+            "https://example.com/video", "downloads/job.%(ext)s", "video", None,
+            "mp3", "best", None, "standard", "none", "en",
+        )
+        self.assertNotIn("--no-check-certificates", command)
+        self.assertNotIn("--no-check-certificate", command)
 
     @patch("main.subprocess.run")
     @patch("main.socket.getaddrinfo")
