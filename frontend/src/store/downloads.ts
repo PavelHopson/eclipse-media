@@ -14,6 +14,7 @@ export type AudioFormat = 'mp3' | 'flac' | 'opus' | 'm4a' | 'wav';
 export type AudioQuality = 'best' | '320' | '192' | '128';
 export type DownloadPreset = 'standard' | 'archive';
 export type SubtitleMode = 'none' | 'manual' | 'auto';
+export type DownloadPhase = 'preparing' | 'downloading' | 'processing' | 'finalizing';
 export type MediaIntent = 'watch' | 'video' | 'audio' | 'transcript';
 export type MediaRequestStatus = 'planned' | 'in_progress' | 'done';
 
@@ -40,8 +41,11 @@ export interface DownloadItem {
   audioQuality: AudioQuality;
   jobId: string | null;
   progress: number;
+  phase: DownloadPhase;
   speed: string;
   eta: string;
+  fragmentCurrent: number | null;
+  fragmentTotal: number | null;
   filename: string | null;
   error: string | null;
   createdAt: number;
@@ -80,7 +84,7 @@ interface DownloadsState {
   setSubtitleMode: (id: string, mode: SubtitleMode) => void;
   setSubtitleLang: (id: string, lang: string) => void;
   setJobId: (id: string, jobId: string) => void;
-  setProgress: (id: string, percent: number, speed: string, eta: string) => void;
+  setProgress: (id: string, percent: number, speed: string, eta: string, phase?: DownloadPhase, fragmentCurrent?: number | null, fragmentTotal?: number | null) => void;
   setDone: (id: string, filename: string) => void;
   addToHistory: (item: DownloadItem, filename: string) => void;
   clearHistory: () => void;
@@ -119,8 +123,11 @@ export const useDownloads = create<DownloadsState>()(
               audioQuality: 'best',
               jobId: null,
               progress: 0,
+              phase: 'preparing',
               speed: '',
               eta: '',
+              fragmentCurrent: null,
+              fragmentTotal: null,
               filename: null,
               error: null,
               createdAt: Date.now(),
@@ -140,7 +147,9 @@ export const useDownloads = create<DownloadsState>()(
         items: state.items.map((item) => item.id === id ? { ...item, info, status: 'ready' } : item),
       })),
       setStatus: (id, status, error) => set((state) => ({
-        items: state.items.map((item) => item.id === id ? { ...item, status, error: error ?? item.error } : item),
+        items: state.items.map((item) => item.id === id
+          ? { ...item, status, error: error ?? item.error, ...(status === 'downloading' ? { phase: 'preparing' as const, progress: 0 } : {}) }
+          : item),
       })),
       setFormat: (id, format) => set((state) => ({
         items: state.items.map((item) => item.id === id ? { ...item, format, formatId: null } : item),
@@ -169,8 +178,16 @@ export const useDownloads = create<DownloadsState>()(
       setJobId: (id, jobId) => set((state) => ({
         items: state.items.map((item) => item.id === id ? { ...item, jobId } : item),
       })),
-      setProgress: (id, progress, speed, eta) => set((state) => ({
-        items: state.items.map((item) => item.id === id ? { ...item, progress, speed, eta } : item),
+      setProgress: (id, progress, speed, eta, phase, fragmentCurrent, fragmentTotal) => set((state) => ({
+        items: state.items.map((item) => item.id === id ? {
+          ...item,
+          progress,
+          speed,
+          eta,
+          phase: phase ?? (progress > 0 ? 'downloading' : item.phase),
+          fragmentCurrent: fragmentCurrent ?? item.fragmentCurrent,
+          fragmentTotal: fragmentTotal ?? item.fragmentTotal,
+        } : item),
       })),
       setDone: (id, filename) => set((state) => {
         const requestId = state.items.find((item) => item.id === id)?.requestId;

@@ -32,6 +32,10 @@
 
 ## P1
 
+- [ ] Собрать Tauri 2 desktop MVP: native window/save dialog/tray/notifications, single-instance,
+      signed Windows installer и loopback Media Core sidecar с session token.
+- [ ] Добавить Eclipse Chat Media Adapter через `eclipse.media-job/progress/receipt.v1` с preview,
+      human approval и без передачи файлов, cookies, stream URL или локальных путей в Chat.
 - [ ] Добавить bounded playlist preview и выбор до 10 элементов без cookies/raw CLI; все элементы
       проходят общий rights gate, очередь максимум из трёх jobs, TTL и cancellation.
 - [ ] Расширить format picker проверяемыми codec/FPS/filesize, не раскрывая raw yt-dlp expressions.
@@ -49,6 +53,17 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-22 - observable long downloads and desktop direction (v1.2.3)
+
+- Long-running download получил явные фазы `preparing`, `downloading`, `processing`, `finalizing`;
+  100% больше не выглядит как зависание во время локальной обработки.
+- HLS progress parser поддерживает приблизительный total, unknown ETA и fragment counters; UI
+  показывает текущий фрагмент и честно предупреждает о нескольких минутах обработки длинного ролика.
+- Зафиксировано product-решение: Eclipse Media развивается как Tauri local-first desktop worker,
+  Eclipse Chat — как approval/control plane без передачи больших файлов и приватных runtime-данных.
+- Архитектура, контракты, security boundary и P0–P3 rollout описаны в
+  `docs/desktop-chat-architecture.md`.
+
 ### 2026-08-22 - authoritative download filenames (v1.2.2)
 
 - Имя сохранённого файла теперь берётся из фактического `yt-dlp` extractor result после обработки,

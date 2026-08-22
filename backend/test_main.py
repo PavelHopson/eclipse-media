@@ -20,7 +20,9 @@ from main import (
     get_info,
     get_transcript,
     jobs,
+    parse_progress_line,
     parse_ytdlp_title_line,
+    parse_ytdlp_phase_line,
     resolve_vk_external_url,
     sanitize_filename,
     start_download,
@@ -118,13 +120,28 @@ class MediaUrlValidationTests(unittest.TestCase):
             "mp3", "best", None, "standard", "none", "en",
         )
 
-        self.assertEqual(
-            command[command.index("--print") + 1],
+        print_values = [command[index + 1] for index, value in enumerate(command) if value == "--print"]
+        self.assertEqual(print_values, [
+            "before_dl:__ECLIPSE_MEDIA_PHASE__:downloading",
+            "post_process:__ECLIPSE_MEDIA_PHASE__:processing",
             "after_move:__ECLIPSE_MEDIA_TITLE__:%(title)j",
-        )
+        ])
         self.assertIn("--progress", command)
         self.assertEqual(parse_ytdlp_title_line('__ECLIPSE_MEDIA_TITLE__:"Второй ролик"'), "Второй ролик")
         self.assertIsNone(parse_ytdlp_title_line('__ECLIPSE_MEDIA_TITLE__:{"unexpected":true}'))
+        self.assertEqual(parse_ytdlp_phase_line("__ECLIPSE_MEDIA_PHASE__:processing"), "processing")
+        self.assertIsNone(parse_ytdlp_phase_line("__ECLIPSE_MEDIA_PHASE__:unknown"))
+
+    def test_hls_progress_exposes_fragments_without_claiming_unknown_eta(self):
+        parsed = parse_progress_line(
+            "[download]   0.4% of ~   2.07GiB at    1.75MiB/s ETA Unknown (frag 10/2106)"
+        )
+
+        self.assertEqual(parsed["percent"], 0.5)
+        self.assertEqual(parsed["speed"], "1.75MiB/s")
+        self.assertEqual(parsed["fragment_current"], 10)
+        self.assertEqual(parsed["fragment_total"], 2106)
+        self.assertNotIn("eta", parsed)
 
     def test_consecutive_downloads_keep_distinct_safe_source_names(self):
         first = sanitize_filename(
@@ -146,10 +163,18 @@ class MediaUrlValidationTests(unittest.TestCase):
     def test_completed_download_uses_actual_title_instead_of_stale_client_title(self, popen):
         job_id = "a" * 32
         process = MagicMock()
-        process.stdout = iter([
-            "[download] 100% of 10.00KiB at 1.00MiB/s ETA 00:00\n",
-            '__ECLIPSE_MEDIA_TITLE__:"Второй ролик"\n',
-        ])
+
+        def output_lines():
+            yield "__ECLIPSE_MEDIA_PHASE__:downloading\n"
+            yield "[download] 10.0% of ~ 1.00GiB at 1.00MiB/s ETA Unknown (frag 10/100)\n"
+            self.assertEqual(jobs[job_id]["progress"], 10.0)
+            yield "[download] 100% of 1.00MiB at 1.00MiB/s ETA 00:00\n"
+            self.assertEqual(jobs[job_id]["progress"], 10.0)
+            yield "__ECLIPSE_MEDIA_PHASE__:processing\n"
+            self.assertEqual(jobs[job_id]["progress"], 100.0)
+            yield '__ECLIPSE_MEDIA_TITLE__:"Второй ролик"\n'
+
+        process.stdout = output_lines()
         process.returncode = 0
         popen.return_value = process
 
@@ -157,9 +182,12 @@ class MediaUrlValidationTests(unittest.TestCase):
             Path(temp_dir, f"{job_id}.mp4").write_bytes(b"test")
             jobs[job_id] = {
                 "status": "downloading",
+                "phase": "preparing",
                 "progress": 0.0,
                 "speed": "",
                 "eta": "",
+                "fragment_current": None,
+                "fragment_total": None,
                 "file": None,
                 "filename": None,
                 "error": None,
@@ -170,6 +198,7 @@ class MediaUrlValidationTests(unittest.TestCase):
 
             self.assertEqual(jobs[job_id]["filename"], "Второй ролик.mp4")
             self.assertEqual(jobs[job_id]["status"], "done")
+            self.assertEqual(jobs[job_id]["phase"], "finalizing")
             jobs.pop(job_id, None)
 
     def test_download_errors_are_actionable_and_do_not_echo_untrusted_output(self):

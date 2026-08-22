@@ -52,7 +52,15 @@ export function VideoCard({ item }: Props) {
       });
       store.setJobId(item.id, jobId);
       const unsub = subscribeProgress(jobId, (event) => {
-        if (event.type === 'progress') store.setProgress(item.id, event.percent, event.speed, event.eta);
+        if (event.type === 'progress') store.setProgress(
+          item.id,
+          event.percent,
+          event.speed,
+          event.eta,
+          event.phase,
+          event.fragment_current,
+          event.fragment_total,
+        );
         else if (event.type === 'done') { store.setDone(item.id, event.filename); store.addToHistory(item, event.filename); unsub(); }
         else if (event.type === 'error') { store.setStatus(item.id, 'error', event.message); if (item.requestId) store.setRequestStatus(item.requestId, 'planned'); unsub(); }
       });
@@ -72,6 +80,24 @@ export function VideoCard({ item }: Props) {
 
   const disabled = item.status === 'downloading' || item.status === 'done';
   const subtitleLangValid = item.subtitleMode === 'none' || /^[A-Za-z0-9._-]{1,20}$/.test(item.subtitleLang);
+  const phaseLabel = item.phase === 'preparing'
+    ? 'Проверяем источник'
+    : item.phase === 'processing'
+      ? 'Обрабатываем готовый поток'
+      : item.phase === 'finalizing'
+        ? 'Проверяем и называем файл'
+        : item.progress >= 100
+          ? 'Поток загружен — готовим файл'
+          : 'Скачиваем видео';
+  const phaseDetail = item.phase === 'preparing'
+    ? 'Получаем свежие ссылки и параметры качества.'
+    : item.phase === 'processing'
+      ? 'Для длинного ролика объединение и проверка могут занять несколько минут.'
+      : item.phase === 'finalizing'
+        ? 'Остался последний локальный шаг.'
+        : item.fragmentCurrent && item.fragmentTotal
+          ? `Фрагмент ${item.fragmentCurrent} из ${item.fragmentTotal}`
+          : 'Можно оставить приложение работать в фоне.';
 
   return (
     <div
@@ -232,13 +258,17 @@ export function VideoCard({ item }: Props) {
 
       {/* Progress */}
       {item.status === 'downloading' && (
-        <div className="px-4 pb-4">
-          <div className="progress-track">
+        <div className={`download-progress px-4 pb-4 is-${item.phase}`} role="status" aria-live="polite">
+          <div className="download-progress__status">
+            <span className="button-spinner" aria-hidden="true" />
+            <span><strong>{phaseLabel}</strong><small>{phaseDetail}</small></span>
+          </div>
+          <div className="progress-track" aria-label={`${phaseLabel}: ${item.progress.toFixed(1)}%`}>
             <div className="progress-fill eclipse-progress" style={{ width: `${item.progress}%` }} />
           </div>
-          <div className="flex justify-between mt-2 mono" style={{ color: 'var(--text-dim)' }}>
+          <div className="download-progress__meta mono" style={{ color: 'var(--text-dim)' }}>
             <span>{item.progress.toFixed(1)}%{item.speed ? ` · ${item.speed}` : ''}</span>
-            {item.eta && <span>ETA {item.eta}</span>}
+            <span>{item.phase === 'processing' || item.phase === 'finalizing' ? 'Не закрывайте приложение' : item.eta ? `Осталось ≈ ${item.eta}` : 'Выполняется локально'}</span>
           </div>
         </div>
       )}

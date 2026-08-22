@@ -18,8 +18,11 @@ export interface VideoInfo {
 export interface ProgressEvent {
   type: 'progress';
   percent: number;
+  phase?: 'preparing' | 'downloading' | 'processing' | 'finalizing';
   speed: string;
   eta: string;
+  fragment_current?: number | null;
+  fragment_total?: number | null;
 }
 
 export interface DoneEvent {

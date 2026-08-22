@@ -68,6 +68,7 @@ VK_RESOLVE_CACHE_LIMIT = 64
 vk_resolve_cache: dict[str, tuple[float, str]] = {}
 vk_resolve_cache_lock = threading.Lock()
 YTDLP_TITLE_PREFIX = "__ECLIPSE_MEDIA_TITLE__:"
+YTDLP_PHASE_PREFIX = "__ECLIPSE_MEDIA_PHASE__:"
 WINDOWS_RESERVED_FILENAMES = {
     "CON", "PRN", "AUX", "NUL",
     *(f"COM{index}" for index in range(1, 10)),
@@ -109,7 +110,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.2.2", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.2.3", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -454,23 +455,37 @@ def parse_ytdlp_title_line(line: str) -> str | None:
     return title if 0 < len(title) <= 300 else None
 
 
+def parse_ytdlp_phase_line(line: str) -> str | None:
+    stripped = line.strip()
+    if not stripped.startswith(YTDLP_PHASE_PREFIX):
+        return None
+    phase = stripped[len(YTDLP_PHASE_PREFIX):]
+    return phase if phase in {"downloading", "processing", "finalizing"} else None
+
+
 def parse_progress_line(line: str) -> dict | None:
     """
     Парсит строку прогресса yt-dlp:
     [download]  45.6% of   10.00MiB at    1.23MiB/s ETA 00:05
     """
-    m = re.search(
-        r'\[download\]\s+([\d.]+)%\s+of\s+([\d.]+\w+)\s+at\s+([\d.]+\w+/s)\s+ETA\s+([\d:]+)',
-        line
-    )
-    if m:
-        return {
-            "type": "progress",
-            "percent": float(m.group(1)),
-            "total": m.group(2),
-            "speed": m.group(3),
-            "eta": m.group(4),
-        }
+    percent_match = re.search(r"\[download\]\s+([\d.]+)%", line)
+    if percent_match:
+        result: dict = {"type": "progress", "percent": float(percent_match.group(1))}
+        speed_match = re.search(r"\bat\s+([\d.]+\w+/s)", line)
+        eta_match = re.search(r"\bETA\s+([\d:]+|Unknown)", line)
+        fragment_match = re.search(r"\(frag\s+(\d+)/(\d+)\)", line)
+        if speed_match:
+            result["speed"] = speed_match.group(1)
+        if eta_match and eta_match.group(1) != "Unknown":
+            result["eta"] = eta_match.group(1)
+        if fragment_match:
+            fragment_current = int(fragment_match.group(1))
+            fragment_total = int(fragment_match.group(2))
+            result["fragment_current"] = fragment_current
+            result["fragment_total"] = fragment_total
+            if fragment_total > 0:
+                result["percent"] = min(99.9, round(fragment_current / fragment_total * 100, 1))
+        return result
     # Финальная строка после конвертации
     if "[download] 100%" in line or "Destination:" in line:
         return {"type": "progress", "percent": 100.0}
@@ -505,7 +520,7 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.2.2"}
+    return {"ok": True, "version": "1.2.3"}
 
 
 @app.post("/api/proxy-test")
@@ -602,12 +617,15 @@ def start_download(req: DownloadRequest):
             raise HTTPException(429, "Одновременно можно выполнять не более трёх загрузок")
         jobs[job_id] = {
             "status": "downloading",
+            "phase": "preparing",
             "url": url,
             "title": req.title,
             "created_at": time.time(),
             "progress": 0.0,
             "speed": "",
             "eta": "",
+            "fragment_current": None,
+            "fragment_total": None,
             "file": None,
             "filename": None,
             "error": None,
@@ -660,6 +678,8 @@ def _build_download_command(
     cmd = _ytdlp_base(proxy) + [
         "-o", out_template,
         "--progress",
+        "--print", f"before_dl:{YTDLP_PHASE_PREFIX}downloading",
+        "--print", f"post_process:{YTDLP_PHASE_PREFIX}processing",
         "--print", f"after_move:{YTDLP_TITLE_PREFIX}%(title)j",
     ]
 
@@ -723,11 +743,28 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
             parsed_title = parse_ytdlp_title_line(line)
             if parsed_title:
                 extracted_title = parsed_title
+                job["phase"] = "finalizing"
+            parsed_phase = parse_ytdlp_phase_line(line)
+            if parsed_phase:
+                job["phase"] = parsed_phase
+                if parsed_phase in {"processing", "finalizing"}:
+                    job["progress"] = 100.0
+                    job["speed"] = ""
+                    job["eta"] = ""
             parsed = parse_progress_line(line)
             if parsed:
-                job["progress"] = parsed.get("percent", job["progress"])
+                job["phase"] = "downloading"
+                is_fragment_completion = (
+                    parsed.get("percent") == 100.0
+                    and job.get("fragment_total")
+                    and not parsed.get("fragment_total")
+                )
+                if not is_fragment_completion:
+                    job["progress"] = parsed.get("percent", job["progress"])
                 job["speed"] = parsed.get("speed", "")
                 job["eta"] = parsed.get("eta", "")
+                job["fragment_current"] = parsed.get("fragment_current", job.get("fragment_current"))
+                job["fragment_total"] = parsed.get("fragment_total", job.get("fragment_total"))
 
         proc.wait(timeout=300)
 
@@ -793,8 +830,11 @@ async def sse_progress(job_id: str):
                 payload = {
                     "type": "progress",
                     "percent": round(job["progress"], 1),
+                    "phase": job.get("phase", "preparing"),
                     "speed": job.get("speed", ""),
                     "eta": job.get("eta", ""),
+                    "fragment_current": job.get("fragment_current"),
+                    "fragment_total": job.get("fragment_total"),
                 }
                 yield f"data: {json.dumps(payload)}\n\n"
 
