@@ -67,6 +67,12 @@ VK_RESOLVE_CACHE_TTL = 600
 VK_RESOLVE_CACHE_LIMIT = 64
 vk_resolve_cache: dict[str, tuple[float, str]] = {}
 vk_resolve_cache_lock = threading.Lock()
+YTDLP_TITLE_PREFIX = "__ECLIPSE_MEDIA_TITLE__:"
+WINDOWS_RESERVED_FILENAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{index}" for index in range(1, 10)),
+    *(f"LPT{index}" for index in range(1, 10)),
+}
 
 
 # ─── Cleanup background task ──────────────────────────────────────────────────
@@ -103,7 +109,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.2.1", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.2.2", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -426,8 +432,26 @@ def _ytdlp_base(proxy: str | None = None) -> list[str]:
 def sanitize_filename(title: str, ext: str) -> str:
     if not title:
         return f"download{ext}"
-    safe = re.sub(r'[\\/:*?"<>|]', '', title).strip()[:60].strip()
+    safe = re.sub(r'[\x00-\x1f\x7f\\/:*?"<>|]', '', title)
+    safe = re.sub(r"\s+", " ", safe).strip(" .")[:60].rstrip(" .")
+    if safe.upper() in WINDOWS_RESERVED_FILENAMES:
+        safe = f"download-{safe}"
     return f"{safe}{ext}" if safe else f"download{ext}"
+
+
+def parse_ytdlp_title_line(line: str) -> str | None:
+    """Read the actual extractor title without trusting a client-supplied filename."""
+    stripped = line.strip()
+    if not stripped.startswith(YTDLP_TITLE_PREFIX):
+        return None
+    try:
+        title = json.loads(stripped[len(YTDLP_TITLE_PREFIX):])
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(title, str):
+        return None
+    title = title.strip()
+    return title if 0 < len(title) <= 300 else None
 
 
 def parse_progress_line(line: str) -> dict | None:
@@ -481,7 +505,7 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.2.1"}
+    return {"ok": True, "version": "1.2.2"}
 
 
 @app.post("/api/proxy-test")
@@ -633,7 +657,11 @@ def _build_download_command(
     subtitle_lang: str,
 ) -> list[str]:
     """Build an allowlisted yt-dlp command without accepting raw CLI arguments."""
-    cmd = _ytdlp_base(proxy) + ["-o", out_template]
+    cmd = _ytdlp_base(proxy) + [
+        "-o", out_template,
+        "--progress",
+        "--print", f"after_move:{YTDLP_TITLE_PREFIX}%(title)j",
+    ]
 
     if fmt == "audio":
         safe_fmt = audio_fmt if audio_fmt in AUDIO_FORMAT_EXT else "mp3"
@@ -687,10 +715,14 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
             job["process"] = proc
 
         diagnostic_lines: list[str] = []
+        extracted_title: str | None = None
         for line in proc.stdout:  # type: ignore[union-attr]
             diagnostic_lines.append(line.strip())
             if len(diagnostic_lines) > 40:
                 diagnostic_lines.pop(0)
+            parsed_title = parse_ytdlp_title_line(line)
+            if parsed_title:
+                extracted_title = parsed_title
             parsed = parse_progress_line(line)
             if parsed:
                 job["progress"] = parsed.get("percent", job["progress"])
@@ -739,7 +771,7 @@ def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title:
     job["status"] = "done"
     job["progress"] = 100.0
     job["file"] = chosen
-    job["filename"] = sanitize_filename(title, ext)
+    job["filename"] = sanitize_filename(extracted_title or title, ext)
 
 
 @app.get("/api/progress/{job_id}")

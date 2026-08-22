@@ -49,6 +49,22 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-22 - authoritative download filenames (v1.2.2)
+
+- Имя сохранённого файла теперь берётся из фактического `yt-dlp` extractor result после обработки,
+  а не из потенциально устаревшего `title` карточки frontend.
+- Frontend больше не отправляет title как источник имени; client value оставлен на backend только
+  как backward-compatible fallback для старых клиентов.
+- Filename sanitation удаляет control/Windows-invalid characters, trailing dots/spaces и защищает
+  зарезервированные имена `CON`, `NUL`, `COM1` и аналоги.
+- Windows launcher больше не содержит hardcoded `1.2.0`: expected version читается из package
+  metadata, а уже запущенный устаревший backend получает понятное действие вместо молчаливого reuse.
+- Регрессия имитирует client title «Первый ролик» и extractor title «Второй ролик»; итоговое имя
+  подтверждено как `Второй ролик.mp4`. Bounded real extractor check сохранил progress и вернул
+  фактический JSON-encoded title после merge.
+- Exact `ok.ru/video/1656642341511` проверен через обновлённый localhost API: metadata доступна,
+  реальная bounded-задача дошла до HLS fragment 10 и была вручную отменена; полный файл не скачивался.
+
 ### 2026-08-22 - VK external OK.ru resolver (v1.2.1)
 
 - Прямые публичные ссылки `vk.com/video<owner>_<id>` и `vkvideo.ru/video<owner>_<id>` теперь

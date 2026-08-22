@@ -42,7 +42,6 @@ export function VideoCard({ item }: Props) {
       const jobId = await startDownload({
         url: item.url, format: item.format,
         format_id: item.format === 'video' ? (item.formatId ?? undefined) : undefined,
-        title: item.info.title,
         audio_format: item.format === 'audio' ? item.audioFormat : undefined,
         audio_quality: item.format === 'audio' ? item.audioQuality : undefined,
         proxy: store.proxy || undefined,

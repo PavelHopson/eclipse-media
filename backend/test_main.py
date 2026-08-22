@@ -1,8 +1,10 @@
 import socket
 import sys
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -12,11 +14,15 @@ from main import (
     InfoRequest,
     TranscriptRequest,
     _build_download_command,
+    _run_download,
     _ytdlp_base,
     format_ytdlp_error,
     get_info,
     get_transcript,
+    jobs,
+    parse_ytdlp_title_line,
     resolve_vk_external_url,
+    sanitize_filename,
     start_download,
     validate_media_url,
     validate_proxy_url,
@@ -27,6 +33,7 @@ from main import (
 class MediaUrlValidationTests(unittest.TestCase):
     def setUp(self):
         vk_resolve_cache.clear()
+        jobs.clear()
 
     @patch("main.socket.getaddrinfo")
     def test_accepts_public_https_and_removes_fragment(self, getaddrinfo):
@@ -104,6 +111,66 @@ class MediaUrlValidationTests(unittest.TestCase):
             "mp3", "best", None, "standard", "none", "en",
         )
         self.assertEqual(command[command.index("-f") + 1], "vk-1080+bestaudio/vk-1080/best")
+
+    def test_download_command_reports_the_actual_extractor_title_after_processing(self):
+        command = _build_download_command(
+            "https://example.com/video", "downloads/job.%(ext)s", "video", None,
+            "mp3", "best", None, "standard", "none", "en",
+        )
+
+        self.assertEqual(
+            command[command.index("--print") + 1],
+            "after_move:__ECLIPSE_MEDIA_TITLE__:%(title)j",
+        )
+        self.assertIn("--progress", command)
+        self.assertEqual(parse_ytdlp_title_line('__ECLIPSE_MEDIA_TITLE__:"Второй ролик"'), "Второй ролик")
+        self.assertIsNone(parse_ytdlp_title_line('__ECLIPSE_MEDIA_TITLE__:{"unexpected":true}'))
+
+    def test_consecutive_downloads_keep_distinct_safe_source_names(self):
+        first = sanitize_filename(
+            parse_ytdlp_title_line('__ECLIPSE_MEDIA_TITLE__:"Первый ролик"') or "",
+            ".mp4",
+        )
+        second = sanitize_filename(
+            parse_ytdlp_title_line('__ECLIPSE_MEDIA_TITLE__:"Второй ролик"') or "",
+            ".mp4",
+        )
+
+        self.assertEqual(first, "Первый ролик.mp4")
+        self.assertEqual(second, "Второй ролик.mp4")
+        self.assertNotEqual(first, second)
+        self.assertEqual(sanitize_filename("NUL", ".mp4"), "download-NUL.mp4")
+        self.assertEqual(sanitize_filename("bad\x00name\n", ".mp4"), "badname.mp4")
+
+    @patch("main.subprocess.Popen")
+    def test_completed_download_uses_actual_title_instead_of_stale_client_title(self, popen):
+        job_id = "a" * 32
+        process = MagicMock()
+        process.stdout = iter([
+            "[download] 100% of 10.00KiB at 1.00MiB/s ETA 00:00\n",
+            '__ECLIPSE_MEDIA_TITLE__:"Второй ролик"\n',
+        ])
+        process.returncode = 0
+        popen.return_value = process
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch("main.DOWNLOAD_DIR", temp_dir):
+            Path(temp_dir, f"{job_id}.mp4").write_bytes(b"test")
+            jobs[job_id] = {
+                "status": "downloading",
+                "progress": 0.0,
+                "speed": "",
+                "eta": "",
+                "file": None,
+                "filename": None,
+                "error": None,
+                "process": None,
+            }
+
+            _run_download(job_id, "https://example.com/second", "video", None, "Первый ролик")
+
+            self.assertEqual(jobs[job_id]["filename"], "Второй ролик.mp4")
+            self.assertEqual(jobs[job_id]["status"], "done")
+            jobs.pop(job_id, None)
 
     def test_download_errors_are_actionable_and_do_not_echo_untrusted_output(self):
         secret_url = "https://media.example/video?token=do-not-expose"

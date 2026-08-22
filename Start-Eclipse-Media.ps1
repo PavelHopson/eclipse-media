@@ -18,6 +18,11 @@ $frontendDir = Join-Path $repoRoot 'frontend'
 $runtimeDir = Join-Path $repoRoot '.runtime'
 $venvDir = Join-Path $backendDir '.venv'
 $venvPython = Join-Path $venvDir 'Scripts\python.exe'
+$packageJsonPath = Join-Path $frontendDir 'package.json'
+$expectedVersion = (Get-Content -LiteralPath $packageJsonPath -Raw | ConvertFrom-Json).version
+if ($expectedVersion -notmatch '^\d+\.\d+\.\d+$') {
+    throw 'Could not determine the expected Eclipse Media version.'
+}
 $ownedProcesses = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
 
 function Write-Step([string]$Message) {
@@ -49,9 +54,20 @@ function Test-Url([string]$Url) {
 function Test-EclipseBackend {
     try {
         $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/health' -TimeoutSec 2
-        return $health.ok -eq $true -and $health.version -eq '1.2.0'
+        return $health.ok -eq $true -and $health.version -eq $expectedVersion
     }
     catch { return $false }
+}
+
+function Get-EclipseBackendVersion {
+    try {
+        $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/health' -TimeoutSec 2
+        if ($health.ok -eq $true -and $health.version -match '^\d+\.\d+\.\d+$') {
+            return [string]$health.version
+        }
+    }
+    catch { return $null }
+    return $null
 }
 
 function Test-EclipseFrontend {
@@ -110,6 +126,10 @@ try {
     }
 
     if ((Test-Url 'http://127.0.0.1:8000/api/health') -and -not (Test-EclipseBackend)) {
+        $runningVersion = Get-EclipseBackendVersion
+        if ($runningVersion) {
+            throw "Eclipse Media v$runningVersion is still running. Close its launcher window, then start v$expectedVersion again."
+        }
         throw 'Port 8000 is already used by another application.'
     }
     if ((Test-Url 'http://127.0.0.1:5173') -and -not (Test-EclipseFrontend)) {
