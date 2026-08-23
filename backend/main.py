@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.3.0", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.3.1", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -559,7 +559,7 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.3.0", "desktop_session": bool(DESKTOP_SESSION_TOKEN)}
+    return {"ok": True, "version": "1.3.1", "desktop_session": bool(DESKTOP_SESSION_TOKEN)}
 
 
 @app.post("/api/proxy-test")

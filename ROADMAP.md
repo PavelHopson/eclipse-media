@@ -55,6 +55,18 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-23 - branded Windows installer (v1.3.1)
+
+- NSIS welcome/finish приведены к общей Eclipse Media visual system: signal blue, warm gold,
+  dark local-first surface, новый различимый media mark и фирменный sidebar `164x314`.
+- Добавлены отдельные header/uninstaller header `150x57`, app/installer/uninstaller icons и
+  воспроизводимый PowerShell generator; root desktop build регенерирует branding через pinned
+  local Tauri CLI до сборки NSIS.
+- Сохранены native Windows controls, keyboard focus, language selector, current-user install и
+  явный desktop-shortcut choice; preview QA выполнен без установки и без изменений registry/AppData.
+- Собран unsigned pilot `Eclipse Media_1.3.1_x64-setup.exe`; code signing остаётся открытым P1 gate,
+  поэтому SmartScreen trust не заявляется как решённый.
+
 ### 2026-08-23 - native local-first desktop pilot (v1.3.0)
 
 - Добавлен Tauri 2 shell с native window, tray lifecycle, single-instance mutex, уведомлением и
