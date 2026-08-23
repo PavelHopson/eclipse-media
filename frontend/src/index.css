@@ -297,6 +297,83 @@
 .download-card__fetching strong { color: var(--text-secondary); font-size: 11px; }
 .download-card__fetching small { color: var(--text-dim); font-size: 9.5px; line-height: 1.45; }
 
+.save-receipt {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin: 0 14px 14px;
+  padding: 15px;
+  overflow: hidden;
+  border: 1px solid rgba(74, 230, 160, .2);
+  border-radius: 11px;
+  background:
+    linear-gradient(135deg, rgba(74, 230, 160, .055), transparent 58%),
+    var(--surface2);
+}
+.save-receipt::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(74, 230, 160, .56), transparent);
+  transform: scaleX(.36);
+  transition: transform var(--motion-slow) var(--ease-out), opacity var(--motion-base) ease;
+}
+.save-receipt.is-saved::after,
+.save-receipt.is-browser-requested::after { transform: scaleX(1); }
+.save-receipt.is-error { border-color: rgba(248, 113, 113, .26); background: rgba(248, 113, 113, .035); }
+.save-receipt.is-error::after { background: var(--error); opacity: .58; }
+.save-receipt__signal {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(74, 230, 160, .24);
+  border-radius: 10px;
+  color: var(--success);
+  background: rgba(74, 230, 160, .07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045);
+}
+.save-receipt__signal svg { width: 19px; height: 19px; }
+.save-receipt.is-error .save-receipt__signal { border-color: rgba(248, 113, 113, .24); color: var(--error); background: rgba(248, 113, 113, .06); }
+.save-receipt__copy { display: grid; gap: 3px; min-width: 0; }
+.save-receipt__eyebrow { color: var(--success); font-size: 8px; letter-spacing: .1em; text-transform: uppercase; }
+.save-receipt.is-error .save-receipt__eyebrow { color: var(--error); }
+.save-receipt__copy h3 { margin: 0; color: var(--text); font-size: 12px; line-height: 1.3; }
+.save-receipt__copy p { margin: 0; color: var(--text-dim); font-size: 9.5px; line-height: 1.45; }
+.save-receipt__file {
+  display: block;
+  max-width: min(100%, 520px);
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.save-receipt__error { margin-top: 4px; color: var(--error); font-size: 9.5px; line-height: 1.4; }
+.save-receipt__actions { display: flex; align-items: center; gap: 8px; }
+.save-receipt__actions button { min-height: 36px; white-space: nowrap; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .save-receipt { animation: saveReceiptArrival 360ms var(--ease-out) both; }
+  .save-receipt.is-saved .save-receipt__signal,
+  .save-receipt.is-browser-requested .save-receipt__signal { animation: saveReceiptConfirm 420ms var(--ease-out) both; }
+}
+
+@keyframes saveReceiptArrival {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes saveReceiptConfirm {
+  0% { transform: scale(.92); }
+  54% { transform: scale(1.045); }
+  100% { transform: scale(1); }
+}
+
 .download-status-signal {
   position: relative;
   display: grid;
@@ -801,6 +878,9 @@
   .download-phase-rail small { font-size: 7.5px; }
   .download-card.is-error .btn-ghost { min-height: 44px; padding-inline: 12px !important; }
   .download-card button[aria-label="Убрать задачу"] { min-width: 44px; height: 44px; margin: -8px -7px 0 0; }
+  .save-receipt { grid-template-columns: auto minmax(0, 1fr); margin: 0 10px 10px; padding: 13px; }
+  .save-receipt__actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+  .save-receipt__actions button { min-height: 44px; }
 }
 
 @keyframes fadeInUp {

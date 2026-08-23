@@ -298,3 +298,11 @@
 - [x] Add progressbar semantics, current-step semantics and concise `aria-live` phase updates without announcing every progress event.
 - [x] Raise mobile retry and remove-task controls to touch-safe targets; verify error recovery at 1440 px and 390 px without overflow.
 - [x] Add deterministic phase/copy/clamping tests and pass frontend lint, typecheck, seven contract tests and production build.
+
+## Confirmed save receipt — 2026-08-23
+
+- [x] Replace the ambiguous post-download button with explicit ready, saving, confirmed desktop save, browser-requested and recoverable error states.
+- [x] Keep desktop confirmation honest: return and render only the safe filename plus “selected folder”, never the absolute local path.
+- [x] Reject traversal, Windows-reserved, control and bidirectional-spoofing characters before a filename reaches the native save dialog or receipt UI.
+- [x] Keep “open folder” outside the desktop capability set until it has a separately reviewed OS boundary; no shell command or new Tauri permission was added.
+- [x] Pass 11 frontend tests, lint/typecheck/build, three Rust tests, dependency audit, responsive visual QA and reduced-motion CSS gate before shipping.

@@ -53,7 +53,15 @@ fn valid_job_id(value: &str) -> bool {
 }
 
 fn safe_suggested_name(value: &str) -> Option<String> {
-    if value.is_empty() || value.len() > 240 || value.contains(['/', '\\', '\0']) {
+    let unsafe_character = value.chars().any(|character| {
+        character.is_control()
+            || matches!(
+                character,
+                '/' | '\\' | '<' | '>' | ':' | '"' | '|' | '?' | '*'
+            )
+            || matches!(character, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+    });
+    if value.is_empty() || value == "." || value == ".." || value.len() > 240 || unsafe_character {
         return None;
     }
     let path = Path::new(value);
@@ -421,6 +429,9 @@ mod tests {
         assert_eq!(safe_suggested_name("demo.mp4").as_deref(), Some("demo.mp4"));
         assert!(safe_suggested_name("../demo.mp4").is_none());
         assert!(safe_suggested_name("C:\\demo.mp4").is_none());
+        assert!(safe_suggested_name("safe\u{202E}gpj.exe").is_none());
+        assert!(safe_suggested_name("bad?.mp4").is_none());
+        assert!(safe_suggested_name("..").is_none());
     }
 
     #[cfg(windows)]

@@ -4,6 +4,8 @@ import { deleteJob, fetchInfo, startDownload, subscribeProgress, getFileUrl, for
 import { TranscriptModal } from './TranscriptModal';
 import { isDesktopApp, saveCompletedFile } from '../api/desktopRuntime';
 import { DownloadProgress } from './DownloadProgress';
+import { SaveReceipt, SaveReceiptState } from './SaveReceipt';
+import { getReceiptDisplayName, getSafeSuggestedName } from '../services/saveReceipt';
 
 const AUDIO_FORMATS: { value: AudioFormat; label: string; lossless?: boolean }[] = [
   { value: 'mp3', label: 'MP3' },
@@ -27,6 +29,7 @@ export function VideoCard({ item }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedName, setSavedName] = useState<string | null>(null);
+  const [browserDownloadRequested, setBrowserDownloadRequested] = useState(false);
 
   async function handleFetch() {
     store.setStatus(item.id, 'fetching');
@@ -77,13 +80,15 @@ export function VideoCard({ item }: Props) {
 
   async function handleSave() {
     if (!item.jobId) return;
+    const fallbackName = item.format === 'audio' ? `download.${item.audioFormat}` : 'download.mp4';
+    const suggestedName = getSafeSuggestedName(item.filename, fallbackName);
     if (isDesktopApp()) {
       setSaveError(null);
-      setSavedName(null);
+      setBrowserDownloadRequested(false);
       setSaving(true);
       try {
-        const receipt = await saveCompletedFile(item.jobId, item.filename ?? 'download.mp4');
-        if (receipt.saved && receipt.filename) setSavedName(receipt.filename);
+        const receipt = await saveCompletedFile(item.jobId, suggestedName);
+        if (receipt.saved) setSavedName(getReceiptDisplayName(receipt.filename, suggestedName));
       } catch (caught) {
         setSaveError(caught instanceof Error ? caught.message : 'Не удалось сохранить файл');
       } finally {
@@ -93,12 +98,27 @@ export function VideoCard({ item }: Props) {
     }
     const a = document.createElement('a');
     a.href = getFileUrl(item.jobId);
-    a.download = item.filename ?? 'download';
+    a.download = suggestedName;
+    document.body.append(a);
     a.click();
+    a.remove();
+    setSaveError(null);
+    setSavedName(null);
+    setBrowserDownloadRequested(true);
   }
 
   const disabled = item.status === 'fetching' || item.status === 'downloading' || item.status === 'done';
   const subtitleLangValid = item.subtitleMode === 'none' || /^[A-Za-z0-9._-]{1,20}$/.test(item.subtitleLang);
+  const receiptName = getReceiptDisplayName(savedName ?? item.filename, item.format === 'audio' ? `download.${item.audioFormat}` : 'download.mp4');
+  const receiptState: SaveReceiptState = saving
+    ? 'saving'
+    : saveError
+      ? 'error'
+      : savedName
+        ? 'saved'
+        : browserDownloadRequested
+          ? 'browser-requested'
+          : 'ready';
 
   return (
     <div
@@ -156,7 +176,7 @@ export function VideoCard({ item }: Props) {
       )}
 
       {/* Controls */}
-      {item.info && item.status !== 'error' && (
+      {item.info && item.status !== 'error' && item.status !== 'done' && (
         <div className="px-4 pb-4 flex flex-wrap items-center gap-2.5">
           <label className="rights-confirmation">
             <input
@@ -253,17 +273,19 @@ export function VideoCard({ item }: Props) {
                 <span className="inline-block w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin" /> Загрузка...
               </span>
             )}
-            {item.status === 'done' && (
-              <>
-                <button onClick={handleSave} disabled={saving} className="btn-success">
-                  {saving ? <><span className="button-spinner" aria-hidden="true" /> Сохраняем…</> : '✓ Сохранить'}
-                </button>
-                {savedName && <span role="status" className="mono" style={{ color: 'var(--success)' }}>Сохранено: {savedName}</span>}
-                {saveError && <span role="alert" className="mono" style={{ color: 'var(--error)' }}>{saveError}</span>}
-              </>
-            )}
           </div>
         </div>
+      )}
+
+      {item.status === 'done' && (
+        <SaveReceipt
+          desktop={isDesktopApp()}
+          error={saveError}
+          fileName={receiptName}
+          onSave={handleSave}
+          onTranscript={() => setShowTranscript(true)}
+          state={receiptState}
+        />
       )}
 
       {/* Progress */}
