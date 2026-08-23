@@ -36,7 +36,8 @@ NSIS assets:
 - `installer/sidebar.bmp` — `164x314`, dark welcome/finish identity;
 - `installer/header.bmp` — `150x57`, install operations;
 - `installer/uninstaller-header.bmp` — `150x57`, remove operations;
-- `installer/hooks.nsh` — welcome/finish colors, abort warning и Eclipse Forge link;
+- `installer/hooks.nsh` — welcome/finish colors, abort warning, Eclipse Forge link и ранняя
+  проверка desktop/Media Core процессов перед копированием файлов;
 - `installer/Generate-Branding.ps1` — генератор 24-bit BMP без внешнего image runtime.
 
 Операционные страницы NSIS остаются системно-светлыми. Это осознанная граница: native controls,
@@ -57,7 +58,7 @@ Root script выполняет следующие fail-closed шаги:
 4. регенерирует desktop icons только pinned local Tauri CLI;
 5. собирает release EXE и LZMA NSIS bundle.
 
-Текущий artifact: `frontend/src-tauri/target/release/bundle/nsis/Eclipse Media_1.3.2_x64-setup.exe`.
+Текущий artifact: `frontend/src-tauri/target/release/bundle/nsis/Eclipse Media_1.3.3_x64-setup.exe`.
 Он является unsigned pilot и не должен публиковаться как trusted production installer до
 code-signing gate.
 
@@ -70,6 +71,8 @@ code-signing gate.
 - sidebar и header не масштабируются и не обрезаются;
 - `Далее`, `Отмена`, keyboard focus и abort confirmation работают нативно;
 - desktop shortcut создаётся только после явного выбора;
+- при запущенном desktop или оставшемся фоновом Media Core установка до копирования показывает
+  локализованное подтверждение закрытия процесса; `Пропустить` для заблокированного EXE недоступен;
 - installer version совпадает с app, API, Cargo и package version;
 - `Get-AuthenticodeSignature` имеет ожидаемый статус;
 - SHA-256 записан рядом с release artifact;

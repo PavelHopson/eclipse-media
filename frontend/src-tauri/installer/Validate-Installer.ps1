@@ -31,9 +31,15 @@ if ($backend -notmatch "version=`"$([regex]::Escape($expectedVersion))`"") {
 }
 
 $hooks = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'hooks.nsh')
-foreach ($requiredHook in ('MUI_FORCECLASSICCONTROLS', 'MUI_FINISHPAGE_LINK_COLOR "6BA3FF"')) {
+foreach ($requiredHook in (
+    'MUI_FORCECLASSICCONTROLS',
+    'MUI_FINISHPAGE_LINK_COLOR "6BA3FF"',
+    '!macro NSIS_HOOK_PREINSTALL',
+    'CheckIfAppIsRunning "${MAINBINARYNAME}.exe" "${PRODUCTNAME}"',
+    'CheckIfAppIsRunning "eclipse-media-core.exe" "${PRODUCTNAME}"'
+)) {
     if ($hooks -notmatch [regex]::Escape($requiredHook)) {
-        throw "Installer contrast contract is missing $requiredHook."
+        throw "Installer UX contract is missing $requiredHook."
     }
 }
 

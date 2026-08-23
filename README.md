@@ -142,12 +142,14 @@ NSIS-инсталлятор появляется в `frontend/src-tauri/target/r
 медиа FFmpeg должен быть установлен локально и доступен в `PATH`. Текущий pilot build не подписан
 коммерческим code-signing сертификатом, поэтому SmartScreen может показать предупреждение.
 
-Installer 1.3.2 оформлен в общей Eclipse visual system: собственные app/installer/uninstaller
+Installer 1.3.3 оформлен в общей Eclipse visual system: собственные app/installer/uninstaller
 иконки, тёмные welcome/finish surfaces, фирменные sidebar и header, русский/английский язык.
 Установка выполняется в `currentUser`-режиме без системной auto-elevation, а создание ярлыка на
 рабочем столе остаётся явным выбором пользователя на финальном экране. Системные поля и кнопки
 на операционных шагах намеренно не перерисовываются: сохраняются Windows contrast, keyboard focus
-и accessibility behavior. Исходники и QA-контракт: [`docs/windows-installer.md`](docs/windows-installer.md).
+и accessibility behavior. Перед копированием установщик предлагает закрыть как основное окно,
+так и фоновый Media Core, поэтому обновление не упирается в заблокированный EXE. Исходники и
+QA-контракт: [`docs/windows-installer.md`](docs/windows-installer.md).
 
 ### Windows — браузерный fallback
 

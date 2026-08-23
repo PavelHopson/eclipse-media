@@ -55,6 +55,16 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-23 - safe in-place installer update (v1.3.3)
+
+- NSIS preinstall gate теперь проверяет и основной desktop-процесс, и фоновый
+  `eclipse-media-core.exe` до копирования файлов, предлагает явное закрытие и больше не доводит
+  обновление до сырого диалога `Прервать / Повтор / Пропустить` на 100% распаковки.
+- Desktop shell передаёт Media Core PID владельца; Windows watchdog завершает packaged server и
+  его внутренние yt-dlp workers после выхода или аварийного закрытия Tauri shell, не оставляя EXE
+  заблокированным для следующего обновления.
+- Installer validator fail closed проверяет lifecycle gate вместе с contrast/version/assets contract.
+
 ### 2026-08-23 - packaged extractor and finish contrast fix (v1.3.2)
 
 - Исправлен desktop-only blocker: PyInstaller sidecar больше не пытается выполнить
