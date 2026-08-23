@@ -306,3 +306,10 @@
 - [x] Reject traversal, Windows-reserved, control and bidirectional-spoofing characters before a filename reaches the native save dialog or receipt UI.
 - [x] Keep “open folder” outside the desktop capability set until it has a separately reviewed OS boundary; no shell command or new Tauri permission was added.
 - [x] Pass 11 frontend tests, lint/typecheck/build, three Rust tests, dependency audit, responsive visual QA and reduced-motion CSS gate before shipping.
+
+## Exact-SHA desktop package — 2026-08-23
+
+- [x] Build the Windows x64 NSIS pilot from detached source commit `bdbdbd3` with npm, pip and Cargo forced offline; no dirty workspace files entered the package.
+- [x] Revalidate installer version/assets/lifecycle contract and preserve SHA-256 plus machine-readable provenance beside the local artifact.
+- [x] Smoke the packaged sidecar on a random loopback port: session auth enabled, unauthenticated request rejected with `401`, OK.ru metadata returned title, duration and four formats.
+- [x] Keep the existing installed desktop/core processes untouched; GUI installer execution remains a deliberate user action because the artifact is unsigned (`NotSigned`).
