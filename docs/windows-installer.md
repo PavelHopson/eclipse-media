@@ -57,7 +57,7 @@ Root script выполняет следующие fail-closed шаги:
 4. регенерирует desktop icons только pinned local Tauri CLI;
 5. собирает release EXE и LZMA NSIS bundle.
 
-Текущий artifact: `frontend/src-tauri/target/release/bundle/nsis/Eclipse Media_1.3.1_x64-setup.exe`.
+Текущий artifact: `frontend/src-tauri/target/release/bundle/nsis/Eclipse Media_1.3.2_x64-setup.exe`.
 Он является unsigned pilot и не должен публиковаться как trusted production installer до
 code-signing gate.
 

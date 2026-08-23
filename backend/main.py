@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.3.1", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.3.2", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -461,7 +461,14 @@ def srt_to_plain_text(segments: list[dict]) -> str:
 
 def _ytdlp_base(proxy: str | None = None) -> list[str]:
     """Base yt-dlp flags. Runtime network code is opt-in, never implicit."""
-    cmd = [sys.executable, "-m", "yt_dlp", "--no-playlist", "--no-warnings", "--js-runtimes", "node"]
+    if getattr(sys, "frozen", False):
+        # A PyInstaller one-file executable is not a Python interpreter. Route the
+        # child process back through the explicit sidecar yt-dlp entry point instead
+        # of accidentally starting desktop_sidecar.py with `-m yt_dlp` arguments.
+        cmd = [sys.executable, "--eclipse-ytdlp"]
+    else:
+        cmd = [sys.executable, "-m", "yt_dlp"]
+    cmd += ["--no-playlist", "--no-warnings", "--js-runtimes", "node"]
     if os.getenv("ECLIPSE_MEDIA_ALLOW_REMOTE_COMPONENTS", "").lower() in {"1", "true", "yes"}:
         cmd += ["--remote-components", "ejs:github"]
     if proxy and proxy.strip():
@@ -559,7 +566,7 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.3.1", "desktop_session": bool(DESKTOP_SESSION_TOKEN)}
+    return {"ok": True, "version": "1.3.2", "desktop_session": bool(DESKTOP_SESSION_TOKEN)}
 
 
 @app.post("/api/proxy-test")

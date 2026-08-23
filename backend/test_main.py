@@ -105,6 +105,14 @@ class MediaUrlValidationTests(unittest.TestCase):
         self.assertEqual(command[:3], [sys.executable, "-m", "yt_dlp"])
         self.assertNotIn("--remote-components", command)
 
+    @patch.object(sys, "frozen", True, create=True)
+    def test_packaged_sidecar_routes_ytdlp_through_its_explicit_entry_point(self):
+        command = _ytdlp_base()
+
+        self.assertEqual(command[:2], [sys.executable, "--eclipse-ytdlp"])
+        self.assertNotIn("-m", command)
+        self.assertNotIn("--remote-components", command)
+
     def test_archive_preset_uses_only_bounded_metadata_and_thumbnail_flags(self):
         command = _build_download_command(
             "https://example.com/video", "downloads/job.%(ext)s", "video", "137",

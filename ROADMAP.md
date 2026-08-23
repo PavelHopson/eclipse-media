@@ -55,6 +55,17 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-23 - packaged extractor and finish contrast fix (v1.3.2)
+
+- Исправлен desktop-only blocker: PyInstaller sidecar больше не пытается выполнить
+  `sys.executable -m yt_dlp` как повторный запуск Media Core; explicit internal entry point
+  запускает bundled yt-dlp с тем же allowlisted argv и без shell/raw HTTP arguments.
+- Exact `https://ok.ru/video/1656642472583` подтверждён через обычный backend и используется как
+  packaged-sidecar smoke: metadata содержит duration и восемь доступных video resolutions.
+- NSIS finish checkbox labels переведены на classic native rendering, которое учитывает
+  `MUI_TEXTCOLOR`; Eclipse Forge link получил контрастный signal-blue вместо тёмно-синего default.
+- Installer validator теперь fail closed, если contrast macros удалены при следующей сборке.
+
 ### 2026-08-23 - branded Windows installer (v1.3.1)
 
 - NSIS welcome/finish приведены к общей Eclipse Media visual system: signal blue, warm gold,

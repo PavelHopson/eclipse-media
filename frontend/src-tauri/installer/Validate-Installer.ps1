@@ -30,6 +30,13 @@ if ($backend -notmatch "version=`"$([regex]::Escape($expectedVersion))`"") {
     throw "Backend API version does not match $expectedVersion."
 }
 
+$hooks = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'hooks.nsh')
+foreach ($requiredHook in ('MUI_FORCECLASSICCONTROLS', 'MUI_FINISHPAGE_LINK_COLOR "6BA3FF"')) {
+    if ($hooks -notmatch [regex]::Escape($requiredHook)) {
+        throw "Installer contrast contract is missing $requiredHook."
+    }
+}
+
 $assets = @(
     @{ Name = 'sidebar.bmp'; Width = 164; Height = 314 },
     @{ Name = 'header.bmp'; Width = 150; Height = 57 },
