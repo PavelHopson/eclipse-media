@@ -281,3 +281,11 @@
 - [x] Assign the `bento-spatial` profile to media workspaces: compact functional groups, bounded depth and one ambient light source.
 - [x] Keep rights, queue and approval boundaries unchanged; added motion is pointer-only and disabled for reduced motion.
 - [x] Pass frontend typecheck, four security-contract tests and production build.
+
+## Eclipse Signal interaction polish — 2026-08-23
+
+- [x] Strengthen the desktop-product hierarchy around the URL field, queue and local-first trust panel without changing download behavior.
+- [x] Add restrained Eclipse signal details: staged entrance, focus sweep, status arrival, active workspace marker and finite studio-orbit reveal.
+- [x] Replace decorative `transition: all`, animated shadow/background-position and expanding-corner effects with bounded transform/opacity motion.
+- [x] Cover `prefers-reduced-motion`, forced colors, keyboard focus and 390 px mobile layout; keep loading-only progress and spinner motion essential.
+- [x] Pass frontend lint, four contract tests, typecheck and production build; desktop and mobile browser QA show no horizontal overflow.

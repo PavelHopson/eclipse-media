@@ -80,7 +80,7 @@ export function ProxySettings() {
             <button
               onClick={handleTest}
               disabled={!input.trim() || testing}
-              className="px-3 py-1.5 rounded-lg text-xs transition-all disabled:opacity-30"
+              className="px-3 py-1.5 rounded-lg text-xs transition-transform active:scale-[0.98] disabled:opacity-30"
               style={{ background: 'var(--surface2)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}
             >
               {testing ? '⏳ Проверка...' : '🧪 Тест'}
@@ -89,7 +89,7 @@ export function ProxySettings() {
             {proxy && (
               <button
                 onClick={handleClear}
-                className="px-3 py-1.5 rounded-lg text-xs transition-all"
+                className="px-3 py-1.5 rounded-lg text-xs transition-transform active:scale-[0.98]"
                 style={{ color: 'var(--error)' }}
               >
                 ✕ Отключить

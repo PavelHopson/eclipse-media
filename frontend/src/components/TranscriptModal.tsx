@@ -188,14 +188,14 @@ export function TranscriptModal({ url, title, rightsConfirmed, onComplete, onClo
             <div className="flex items-center gap-2 ml-auto">
               <button
                 onClick={handleCopy}
-                className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+                className="px-3 py-1 rounded-lg text-xs font-medium transition-transform active:scale-[0.98]"
                 style={{ background: 'var(--surface2)', color: copied ? 'var(--success)' : 'var(--text-dim)' }}
               >
                 {copied ? '✓ Скопировано' : '⎘ Копировать'}
               </button>
               <button
                 onClick={handleDownload}
-                className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+                className="px-3 py-1 rounded-lg text-xs font-medium transition-transform active:scale-[0.98]"
                 style={{ background: 'var(--surface2)', color: 'var(--text-dim)' }}
                 title="Скачать как .txt"
               >
@@ -203,7 +203,7 @@ export function TranscriptModal({ url, title, rightsConfirmed, onComplete, onClo
               </button>
               <button
                 onClick={handleDownloadSrt}
-                className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+                className="px-3 py-1 rounded-lg text-xs font-medium transition-transform active:scale-[0.98]"
                 style={{ background: 'var(--surface2)', color: 'var(--text-dim)' }}
                 title="Скачать как .srt"
               >

@@ -1,4 +1,6 @@
 .workspace-switch {
+  position: relative;
+  isolation: isolate;
   display: flex;
   gap: 3px;
   margin-left: 28px;
@@ -9,6 +11,8 @@
 }
 
 .workspace-switch__item {
+  position: relative;
+  overflow: hidden;
   min-height: 32px;
   padding: 0 13px;
   border: 0;
@@ -17,16 +21,29 @@
   color: var(--text-secondary);
   font: 600 11px var(--font-sans);
   cursor: pointer;
-  transition: color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  transition: transform var(--motion-fast) var(--ease-out), opacity var(--motion-fast) ease;
 }
 
-.workspace-switch__item:hover { color: var(--text); }
+.workspace-switch__item::after {
+  content: '';
+  position: absolute;
+  inset: auto 10px 2px;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--accent-light), transparent);
+  opacity: 0;
+  transform: scaleX(.2);
+  transition: transform var(--motion-base) var(--ease-out), opacity var(--motion-fast) ease;
+}
+
+.workspace-switch__item:hover { color: var(--text); transform: translateY(-1px); }
 .workspace-switch__item:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
 .workspace-switch__item.is-active {
   color: #f8fbff;
   background: linear-gradient(145deg, rgba(107, 163, 255, 0.22), rgba(107, 163, 255, 0.08));
   box-shadow: inset 0 0 0 1px rgba(157, 196, 255, 0.18), 0 4px 16px rgba(0, 0, 0, 0.22);
 }
+.workspace-switch__item.is-active::after { opacity: .74; transform: scaleX(1); }
 .header-status { margin-left: auto; }
 
 .studio-shell {
@@ -90,7 +107,7 @@
   border-left-color: rgba(107, 163, 255, 0.85);
   border-bottom-color: rgba(107, 163, 255, 0.28);
   box-shadow: -16px 0 28px rgba(107, 163, 255, 0.18), 13px 0 24px rgba(212, 175, 55, 0.18), inset 0 0 32px rgba(0, 0, 0, 0.9);
-  animation: studioOrbit 14s linear infinite;
+  animation: studioOrbit 2400ms var(--ease-out) both;
 }
 .studio-orbit__flare { position: absolute; width: 19px; height: 2px; margin-left: 190px; border-radius: 99px; background: #fff3dc; box-shadow: 0 0 7px #fff, 0 0 17px var(--accent2), 0 0 34px rgba(212, 175, 55, 0.68); }
 .studio-orbit__label { position: absolute; bottom: 38px; color: rgba(157, 196, 255, 0.58); letter-spacing: .2em; }
@@ -133,7 +150,23 @@
 .studio-capabilities strong { display: block; margin-top: 9px; color: var(--text); font: 600 12px var(--font-display); }
 .studio-capabilities p { margin: 5px 0 0; color: var(--text-dim); font-size: 10px; line-height: 1.5; }
 
-@keyframes studioOrbit { to { transform: rotate(360deg); } }
+@keyframes studioOrbit {
+  from { opacity: .38; transform: rotate(-42deg) scale(.92); }
+  to { opacity: 1; transform: rotate(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .studio-hero__copy { animation: studioReveal 560ms var(--ease-out) both; }
+  .studio-orbit { animation: studioReveal 620ms 90ms var(--ease-out) both; }
+  .studio-preview-card { animation: studioReveal 520ms 120ms var(--ease-out) both; }
+  .studio-runbook { animation: studioReveal 520ms 180ms var(--ease-out) both; }
+  .studio-capabilities { animation: studioReveal 520ms 230ms var(--ease-out) both; }
+}
+
+@keyframes studioReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 @media (max-width: 840px) {
   .header-status { display: none; }
