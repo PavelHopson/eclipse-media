@@ -3,6 +3,7 @@ import { AudioFormat, AudioQuality, DownloadItem, useDownloads } from '../store/
 import { deleteJob, fetchInfo, startDownload, subscribeProgress, getFileUrl, formatDuration } from '../api/media';
 import { TranscriptModal } from './TranscriptModal';
 import { isDesktopApp, saveCompletedFile } from '../api/desktopRuntime';
+import { DownloadProgress } from './DownloadProgress';
 
 const AUDIO_FORMATS: { value: AudioFormat; label: string; lossless?: boolean }[] = [
   { value: 'mp3', label: 'MP3' },
@@ -96,34 +97,14 @@ export function VideoCard({ item }: Props) {
     a.click();
   }
 
-  const disabled = item.status === 'downloading' || item.status === 'done';
+  const disabled = item.status === 'fetching' || item.status === 'downloading' || item.status === 'done';
   const subtitleLangValid = item.subtitleMode === 'none' || /^[A-Za-z0-9._-]{1,20}$/.test(item.subtitleLang);
-  const phaseLabel = item.phase === 'preparing'
-    ? 'Проверяем источник'
-    : item.phase === 'processing'
-      ? 'Обрабатываем готовый поток'
-      : item.phase === 'finalizing'
-        ? 'Проверяем и называем файл'
-        : item.progress >= 100
-          ? 'Поток загружен — готовим файл'
-          : 'Скачиваем видео';
-  const phaseDetail = item.phase === 'preparing'
-    ? 'Получаем свежие ссылки и параметры качества.'
-    : item.phase === 'processing'
-      ? 'Для длинного ролика объединение и проверка могут занять несколько минут.'
-      : item.phase === 'finalizing'
-        ? 'Остался последний локальный шаг.'
-        : item.fragmentCurrent && item.fragmentTotal
-          ? `Фрагмент ${item.fragmentCurrent} из ${item.fragmentTotal}`
-          : 'Можно оставить приложение работать в фоне.';
 
   return (
     <div
-      className="rounded-2xl overflow-hidden transition-all eclipse-card"
-      style={{
-        background: 'var(--surface)',
-        border: `1px solid ${item.status === 'error' ? 'rgba(255,79,79,0.3)' : item.status === 'done' ? 'rgba(48,216,136,0.2)' : 'var(--border)'}`,
-      }}
+      className={`download-card eclipse-card is-${item.status}`}
+      data-phase={item.status === 'downloading' ? item.phase : undefined}
+      aria-busy={item.status === 'fetching' || item.status === 'downloading' || saving}
     >
       {/* Header — thumbnail + title */}
       <div className="flex gap-3.5 p-4">
@@ -166,6 +147,13 @@ export function VideoCard({ item }: Props) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
+
+      {item.status === 'fetching' && (
+        <div className="download-card__fetching" role="status" aria-live="polite">
+          <span className="button-spinner" aria-hidden="true" />
+          <span><strong>Проверяем ссылку</strong><small>Получаем название, длительность и доступные форматы.</small></span>
+        </div>
+      )}
 
       {/* Controls */}
       {item.info && item.status !== 'error' && (
@@ -280,19 +268,14 @@ export function VideoCard({ item }: Props) {
 
       {/* Progress */}
       {item.status === 'downloading' && (
-        <div className={`download-progress px-4 pb-4 is-${item.phase}`} role="status" aria-live="polite">
-          <div className="download-progress__status">
-            <span className="button-spinner" aria-hidden="true" />
-            <span><strong>{phaseLabel}</strong><small>{phaseDetail}</small></span>
-          </div>
-          <div className="progress-track" aria-label={`${phaseLabel}: ${item.progress.toFixed(1)}%`}>
-            <div className="progress-fill eclipse-progress" style={{ width: `${item.progress}%` }} />
-          </div>
-          <div className="download-progress__meta mono" style={{ color: 'var(--text-dim)' }}>
-            <span>{item.progress.toFixed(1)}%{item.speed ? ` · ${item.speed}` : ''}</span>
-            <span>{item.phase === 'processing' || item.phase === 'finalizing' ? 'Не закрывайте приложение' : item.eta ? `Осталось ≈ ${item.eta}` : 'Выполняется локально'}</span>
-          </div>
-        </div>
+        <DownloadProgress
+          eta={item.eta}
+          fragmentCurrent={item.fragmentCurrent}
+          fragmentTotal={item.fragmentTotal}
+          phase={item.phase}
+          progress={item.progress}
+          speed={item.speed}
+        />
       )}
 
       {/* Idle — fetch button */}

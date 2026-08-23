@@ -289,3 +289,12 @@
 - [x] Replace decorative `transition: all`, animated shadow/background-position and expanding-corner effects with bounded transform/opacity motion.
 - [x] Cover `prefers-reduced-motion`, forced colors, keyboard focus and 390 px mobile layout; keep loading-only progress and spinner motion essential.
 - [x] Pass frontend lint, four contract tests, typecheck and production build; desktop and mobile browser QA show no horizontal overflow.
+
+## State-driven download queue — 2026-08-23
+
+- [x] Make initial source inspection visible even before metadata exists and disable conflicting controls while a retry is running.
+- [x] Separate source, download, processing and final-file stages so a 100% media stream is never presented as a completed file.
+- [x] Animate measured download progress with compositor-only `scaleX`; keep processing/finalizing indeterminate and label them honestly.
+- [x] Add progressbar semantics, current-step semantics and concise `aria-live` phase updates without announcing every progress event.
+- [x] Raise mobile retry and remove-task controls to touch-safe targets; verify error recovery at 1440 px and 390 px without overflow.
+- [x] Add deterministic phase/copy/clamping tests and pass frontend lint, typecheck, seven contract tests and production build.

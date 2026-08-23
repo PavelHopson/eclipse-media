@@ -174,9 +174,12 @@
 
   .progress-track { height: 3px; border-radius: 2px; background: var(--surface2); overflow: hidden; position: relative; }
   .progress-fill {
-    position: relative; height: 100%; overflow: hidden; border-radius: 2px;
+    position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 2px;
     background: linear-gradient(90deg, var(--accent-dim), var(--accent-light));
     box-shadow: 0 0 10px var(--accent-glow);
+    transform: scaleX(var(--progress-scale, 0));
+    transform-origin: left center;
+    transition: transform 280ms var(--ease-standard), opacity var(--motion-fast) ease;
   }
   .progress-fill.eclipse-progress {
     background: linear-gradient(90deg, var(--accent-dim), var(--accent), var(--accent-light), var(--accent2));
@@ -190,15 +193,21 @@
     transform: translateX(-110%);
     animation: eclipseProgressSignal 1.5s var(--ease-standard) infinite;
   }
-  .download-progress { display: grid; gap: 10px; }
+  .download-progress {
+    display: grid;
+    gap: 12px;
+    margin: 0 14px 14px;
+    padding: 14px;
+    border: 1px solid rgba(107, 163, 255, .13);
+    border-radius: 12px;
+    background: rgba(5, 7, 10, .48);
+  }
   .download-progress__status { display: flex; align-items: center; gap: 9px; min-height: 34px; }
-  .download-progress__status .button-spinner { flex: 0 0 auto; border-color: rgba(107, 163, 255, .24); border-top-color: var(--accent); }
   .download-progress__status > span:last-child { display: grid; gap: 2px; min-width: 0; }
   .download-progress__status strong { color: var(--text-secondary); font-size: 11.5px; line-height: 1.25; }
   .download-progress__status small { color: var(--text-dim); font-size: 9.5px; line-height: 1.4; }
-  .download-progress__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; font-size: 9.5px; }
-  .download-progress.is-processing .progress-fill,
-  .download-progress.is-finalizing .progress-fill { width: 100% !important; }
+  .download-progress__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; color: var(--text-dim); font-size: 9.5px; }
+  .download-progress:not(.is-downloading) .progress-fill { opacity: .42; }
 
   .mono { font-family: var(--font-mono); font-size: 10.5px; }
 
@@ -233,6 +242,145 @@
   color: var(--accent-light);
   background: linear-gradient(145deg, rgba(107, 163, 255, .16), rgba(12, 17, 23, .96));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 22px rgba(0, 0, 0, .22);
+}
+
+.download-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.download-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleX(.18);
+  transform-origin: left;
+  transition: transform var(--motion-slow) var(--ease-out), opacity var(--motion-fast) ease;
+}
+
+.download-card.is-fetching,
+.download-card.is-downloading { border-color: rgba(107, 163, 255, .28); }
+.download-card.is-fetching::before,
+.download-card.is-downloading::before { opacity: .76; transform: scaleX(1); }
+.download-card.is-done { border-color: rgba(74, 230, 160, .24); }
+.download-card.is-done::before { background: var(--success); opacity: .74; transform: scaleX(1); }
+.download-card.is-error { border-color: rgba(248, 113, 113, .34); }
+.download-card.is-error::before { background: var(--error); opacity: .68; transform: scaleX(1); }
+.download-card.is-error .btn-ghost { min-height: 32px; }
+.download-card button[aria-label="Убрать задачу"] {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+}
+
+.download-card__fetching {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -3px 14px 14px;
+  padding: 12px 13px;
+  border: 1px solid rgba(107, 163, 255, .14);
+  border-radius: 10px;
+  background: rgba(107, 163, 255, .045);
+}
+.download-card__fetching .button-spinner { flex: 0 0 auto; border-color: rgba(107, 163, 255, .24); border-top-color: var(--accent); }
+.download-card__fetching > span:last-child { display: grid; gap: 3px; }
+.download-card__fetching strong { color: var(--text-secondary); font-size: 11px; }
+.download-card__fetching small { color: var(--text-dim); font-size: 9.5px; line-height: 1.45; }
+
+.download-status-signal {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(107, 163, 255, .18);
+  border-radius: 50%;
+  background: rgba(107, 163, 255, .055);
+}
+.download-status-signal > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  box-shadow: 0 0 12px rgba(107, 163, 255, .72);
+}
+.download-status-signal::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(107, 163, 255, .28);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(.6);
+  animation: downloadSignalPulse 1500ms var(--ease-out) infinite;
+}
+
+.download-phase-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.download-phase-rail li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-dim);
+}
+.download-phase-rail li::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 50%;
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+}
+.download-phase-rail li:first-child::before { display: none; }
+.download-phase-rail li > span {
+  position: relative;
+  z-index: 1;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--surface2);
+  border-radius: 50%;
+  background: var(--border-hover);
+}
+.download-phase-rail li.is-complete::before,
+.download-phase-rail li.is-active::before,
+.download-phase-rail li.is-complete > span { background: var(--accent-dim); }
+.download-phase-rail li.is-active > span {
+  background: var(--accent-light);
+  box-shadow: 0 0 0 4px rgba(107, 163, 255, .08), 0 0 12px rgba(107, 163, 255, .45);
+}
+.download-phase-rail li.is-active small { color: var(--text-secondary); }
+.download-phase-rail small {
+  overflow: hidden;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes downloadSignalPulse {
+  0% { opacity: 0; transform: scale(.6); }
+  36% { opacity: .64; }
+  100% { opacity: 0; transform: scale(1.18); }
 }
 
 .download-shell {
@@ -648,6 +796,11 @@
   .direct-link-badge { display: none; }
   .url-field__footer { align-items: stretch; flex-direction: column; padding: 10px; }
   .url-field__footer .btn-primary { width: 100%; min-height: 44px; }
+  .download-progress { margin: 0 10px 10px; padding: 12px 10px; }
+  .download-phase-rail { margin-inline: -2px; }
+  .download-phase-rail small { font-size: 7.5px; }
+  .download-card.is-error .btn-ghost { min-height: 44px; padding-inline: 12px !important; }
+  .download-card button[aria-label="Убрать задачу"] { min-width: 44px; height: 44px; margin: -8px -7px 0 0; }
 }
 
 @keyframes fadeInUp {
