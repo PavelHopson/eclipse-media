@@ -45,6 +45,17 @@ jobs:
       - name: Build production images
         run: docker compose -f docker-compose.production.yml build
 
+      - name: Smoke production runtime
+        env:
+          ECLIPSE_MEDIA_PORT: "18080"
+        run: |
+          cleanup() {
+            docker compose -p eclipse-media-smoke -f docker-compose.production.yml down -v --remove-orphans
+          }
+          trap cleanup EXIT
+          docker compose -p eclipse-media-smoke -f docker-compose.production.yml up -d --no-build --wait --wait-timeout 90
+          curl --fail --silent --show-error "http://127.0.0.1:$ECLIPSE_MEDIA_PORT/api/health" >/dev/null
+
       - name: Configure SSH trust
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -116,6 +127,8 @@ jobs:
             fi
           fi
           echo "Deployment failed healthcheck; restoring previous release" >&2
+          docker compose -p eclipse-media -f "$release/docker-compose.production.yml" ps || true
+          docker compose -p eclipse-media -f "$release/docker-compose.production.yml" logs --no-color --tail=120 || true
           docker compose -p eclipse-media -f "$release/docker-compose.production.yml" down || true
           if [ -n "$previous" ] && [ -f "$previous/docker-compose.production.yml" ]; then
             docker compose -p eclipse-media -f "$previous/docker-compose.production.yml" up -d --build --remove-orphans

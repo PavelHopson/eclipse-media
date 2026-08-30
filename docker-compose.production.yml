@@ -48,6 +48,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    ports:
+      - "127.0.0.1:${ECLIPSE_MEDIA_PORT:-8080}:8080"
     restart: unless-stopped
     init: true
     pids_limit: 64
@@ -65,38 +67,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,mode=1777,size=32m
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    networks:
-      - media_internal
-
-  gateway:
-    build:
-      context: ./gateway
-    depends_on:
-      frontend:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:${ECLIPSE_MEDIA_PORT:-8080}:8080"
-    restart: unless-stopped
-    init: true
-    pids_limit: 32
-    mem_limit: 64m
-    cpus: 0.10
-    ulimits:
-      nofile:
-        soft: 1024
-        hard: 1024
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: "3"
-    read_only: true
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,nodev,mode=1777,size=16m
     security_opt:
       - no-new-privileges:true
     cap_drop:

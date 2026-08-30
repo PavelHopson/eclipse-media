@@ -250,11 +250,11 @@ Eclipse Media uses the local `eclipse-forge.visual-system.v1` snapshot in the `p
 ## Production deployment
 
 Production uses docker-compose.production.yml: the frontend is built once and served by a
-non-root NGINX container, the FastAPI backend runs as a non-root user, all containers drop Linux
+non-root NGINX container, the FastAPI backend runs as a non-root user, both containers drop Linux
 capabilities and use read-only filesystems plus PID/CPU/RAM limits. Frontend и backend общаются
-в internal Docker network; frontend остаётся без egress, backend подключён к отдельной egress network
-для allowlisted download workflow. Минимальный non-root gateway соединяет internal network с
-отдельной edge network и один публикует host loopback для Caddy. Local edit в production явно выключен.
+в internal Docker network; backend подключён к отдельной egress network для allowlisted download
+workflow. Для совместимости с rootless Docker frontend также подключён к отдельной edge network и
+публикует только host loopback для Caddy. Local edit в production явно выключен.
 
 The Deploy production workflow is manual, master-only and attached to the protected GitHub
 production environment. Configure DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH, DEPLOY_SSH_KEY and
