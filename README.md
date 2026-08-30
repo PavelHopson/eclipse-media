@@ -27,6 +27,13 @@
   HyperFrames check/render работают через проверенный exact CLI и воспроизводимый lockfile
 - Локальная проверка `eclipse.release-storyboard.v1` из Shotforge до render без загрузки, shell и side effects
 
+## Безопасный локальный монтаж — подготовка
+
+Добавлен [офлайн-контракт плана и разрешения на экспорт](docs/safe-local-edit-contract.md):
+один интервал, фиксированный профиль, привязка к исходнику и запуску, одноразовое подтверждение
+и отмена. 19 локальных тестов проходят. FFmpeg worker и export endpoint **ещё не подключены**;
+существующий импорт плана не означает готовый монтажный движок.
+
 ## Product radar
 
 Источник: [Eclipse Library · July 2026 project integration](https://library.eclipse-forge.ru/#guide/july-2026-project-integration).

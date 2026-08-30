@@ -1,6 +1,18 @@
 # Eclipse Media Roadmap
 
-Последнее обновление: **23.08.2026**
+Последнее обновление: **28.08.2026**
+
+### 2026-08-28 — контракт безопасного монтажа, без executor
+
+- [x] Чистый серверный `eclipse.local-edit-plan.v1`: строгая схема, один trim, source hash,
+      scope workspace/user/employee/run/revision, фиксированный профиль без paths/URLs/raw CLI.
+- [x] Одноразовое подтверждение на 120 секунд; отмена/отзыв, проверка исходника и плана,
+      защита от повторного и параллельного использования. 19 offline tests, полный backend suite 54/54;
+      новых зависимостей нет.
+- [ ] Связать контракт с доверенной сессией и source registry, внедрить isolated worker,
+      atomic output/receipt и реальный local MP4 smoke после закрытия предыдущих gates.
+
+Подробности: [границы контракта](docs/safe-local-edit-contract.md). Runtime и production не включены.
 
 ## P0
 

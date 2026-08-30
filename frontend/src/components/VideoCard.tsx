@@ -156,7 +156,7 @@ export function VideoCard({ item }: Props) {
                 <span>✕</span> {item.error}
               </p>
               <button onClick={handleFetch} className="btn-ghost" style={{ padding: '4px 8px', fontSize: '10px' }}>
-                ↻ Обновить данные
+                ↻ Повторить проверку
               </button>
             </div>
           )}

@@ -559,7 +559,39 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
         return "Не удалось подключиться к источнику. Проверьте сеть или proxy и повторите."
     if "ffmpeg" in output and any(marker in output for marker in ("not found", "not installed")):
         return "FFmpeg не найден. Установите FFmpeg и перезапустите Eclipse Media."
-    return "Источник изменился или временно недоступен. Обновите данные ролика и повторите."
+    return "Не удалось прочитать источник после повторной проверки. Убедитесь, что открывается сам публичный ролик, и попробуйте ещё раз."
+
+
+def is_retryable_ytdlp_error(output_lines: list[str]) -> bool:
+    """Retry only failures that can reasonably recover without user action."""
+    output = "\n".join(output_lines).lower()
+    permanent_markers = (
+        "unsupported url",
+        "http error 404",
+        "not found",
+        "private video",
+        "video unavailable",
+        "login required",
+        "sign in",
+        "log in",
+        "cookies",
+    )
+    return not any(marker in output for marker in permanent_markers)
+
+
+def run_ytdlp_info(command: list[str]) -> subprocess.CompletedProcess[str]:
+    """Read metadata with one bounded retry for transient extractor/source failures."""
+    result: subprocess.CompletedProcess[str] | None = None
+    for attempt in range(2):
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            return result
+        if attempt == 0 and is_retryable_ytdlp_error(result.stderr.splitlines()):
+            time.sleep(0.35)
+            continue
+        break
+    assert result is not None
+    return result
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
@@ -594,7 +626,7 @@ def get_info(req: InfoRequest):
 
     cmd = _ytdlp_base(proxy) + ["-j", url]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = run_ytdlp_info(cmd)
     except subprocess.TimeoutExpired:
         raise HTTPException(408, "Превышено время ожидания (60s)")
     except FileNotFoundError:

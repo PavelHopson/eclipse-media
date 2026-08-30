@@ -24,6 +24,7 @@ from main import (
     parse_ytdlp_title_line,
     parse_ytdlp_phase_line,
     resolve_vk_external_url,
+    run_ytdlp_info,
     sanitize_filename,
     start_download,
     validate_desktop_session_token,
@@ -228,6 +229,31 @@ class MediaUrlValidationTests(unittest.TestCase):
         self.assertIn("прямую ссылку", format_ytdlp_error(["Unable to extract cursor data"]))
         self.assertIn("не найдено", format_ytdlp_error([f"HTTP Error 404: Not Found {secret_url}"]))
         self.assertIn("TLS-сертификат", format_ytdlp_error(["CERTIFICATE_VERIFY_FAILED"]))
+
+    @patch("main.time.sleep")
+    @patch("main.subprocess.run")
+    def test_info_retries_one_transient_extractor_failure(self, run, sleep):
+        run.side_effect = [
+            SimpleNamespace(returncode=1, stdout="", stderr="ERROR: temporary extractor failure"),
+            SimpleNamespace(returncode=0, stdout='{"id":"video"}', stderr=""),
+        ]
+
+        result = run_ytdlp_info([sys.executable, "-m", "yt_dlp", "-j", "https://example.com/video"])
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(run.call_count, 2)
+        sleep.assert_called_once_with(0.35)
+
+    @patch("main.time.sleep")
+    @patch("main.subprocess.run")
+    def test_info_does_not_retry_permanent_source_failure(self, run, sleep):
+        run.return_value = SimpleNamespace(returncode=1, stdout="", stderr="ERROR: Unsupported URL")
+
+        result = run_ytdlp_info([sys.executable, "-m", "yt_dlp", "-j", "https://example.com/video"])
+
+        self.assertEqual(result.returncode, 1)
+        run.assert_called_once()
+        sleep.assert_not_called()
 
     def test_tls_verification_is_never_disabled(self):
         command = _build_download_command(

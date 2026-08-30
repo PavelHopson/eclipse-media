@@ -47,14 +47,14 @@ export function UrlInput({ onSubmit, loading }: Props) {
 
   return (
     <div className={`url-field ${value ? 'has-value' : ''} ${error ? 'has-error' : ''}`}>
-      <label className="sr-only" htmlFor="media-url-input">Ссылки на видео</label>
+      <label className="sr-only" htmlFor="media-url-input">Ссылки на страницы видео</label>
       <textarea
         id="media-url-input"
         ref={ref}
         value={value}
         onChange={(e) => { setValue(e.target.value); if (error) setError(''); }}
         onKeyDown={handleKeyDown}
-        placeholder="https://vkvideo.ru/video-…"
+        placeholder="Вставьте ссылку, например https://ok.ru/video/…"
         rows={1}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? 'url-input-error' : 'url-input-help'}
@@ -62,7 +62,7 @@ export function UrlInput({ onSubmit, loading }: Props) {
       />
       <div className="url-field__footer">
         <span id={error ? 'url-input-error' : 'url-input-help'} className={error ? 'url-field__error' : 'url-field__hint'} aria-live="polite">
-          {error || (lines.length > 1 ? `${lines.length} ссылок добавлено` : 'Enter — проверить · Shift+Enter — новая строка')}
+          {error || (lines.length > 1 ? `${lines.length} ссылок добавлено` : 'Команд не нужно · Enter — проверить · Shift+Enter — новая строка')}
         </span>
         <button type="button" onClick={handleSubmit} disabled={!value.trim() || loading} className="btn-primary btn-eclipse">
           {loading ? (<><span className="button-spinner" aria-hidden="true" /> Проверяем...</>) : 'Проверить ссылку'}

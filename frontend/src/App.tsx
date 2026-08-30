@@ -6,10 +6,11 @@ import { History } from './components/History';
 import { ProxySettings } from './components/ProxySettings';
 import { ReleaseStudio } from './components/ReleaseStudio';
 import { MediaIntake } from './components/MediaIntake';
+import { SafeLocalEdit } from './components/SafeLocalEdit';
 import { MediaRequest, useDownloads } from './store/downloads';
 import { fetchInfo } from './api/media';
 
-type Workspace = 'downloads' | 'intake' | 'studio';
+type Workspace = 'downloads' | 'intake' | 'studio' | 'edit';
 
 export default function App() {
   const [fetching, setFetching] = useState(false);
@@ -64,7 +65,9 @@ export default function App() {
     ? 'До 3 задач'
     : workspace === 'intake'
       ? `${store.requests.filter((request) => request.status !== 'done').length} в плане`
-      : 'Local preview';
+      : workspace === 'edit'
+        ? 'Только предпросмотр'
+        : 'Local preview';
 
   return (
     <div className="min-h-screen eclipse-grid forge-product-shell" data-visual-profile="bento-spatial">
@@ -95,6 +98,7 @@ export default function App() {
             ['downloads', 'Загрузки'],
             ['intake', 'План'],
             ['studio', 'Видео-студия'],
+            ['edit', 'Безопасный монтаж'],
           ] as Array<[Workspace, string]>).map(([value, label]) => (
             <button
               key={value}
@@ -113,6 +117,7 @@ export default function App() {
 
       <main className={workspace === 'downloads' ? 'download-shell' : 'studio-shell'}>
         {workspace === 'studio' && <ReleaseStudio />}
+        {workspace === 'edit' && <SafeLocalEdit />}
         {workspace === 'intake' && <MediaIntake onPrepare={handlePrepare} />}
         {workspace === 'downloads' && (
           <>
@@ -120,7 +125,7 @@ export default function App() {
               <div>
                 <span className="section-kicker">Локальная медиа-мастерская</span>
                 <h1 id="download-title">Получите нужный медиафайл <br />без лишних шагов</h1>
-                <p>Вставьте прямую публичную ссылку. Eclipse Media проверит источник и покажет доступные варианты до начала скачивания.</p>
+                <p>Скопируйте адрес страницы конкретного публичного ролика из браузера. Команды и параметры терминала не нужны.</p>
               </div>
               <ol className="download-path" aria-label="Порядок работы">
                 <li><span>01</span><strong>Ссылка</strong><small>Укажите источник</small></li>
@@ -135,12 +140,12 @@ export default function App() {
                   <div className="download-start-card__heading">
                     <div>
                       <span className="step-badge">Новая задача</span>
-                      <h2>Добавьте ссылку на видео</h2>
+                      <h2>Вставьте ссылку на страницу видео</h2>
                     </div>
                     <span className="direct-link-badge">Прямая ссылка</span>
                   </div>
                   <UrlInput onSubmit={handleSubmit} loading={fetching} />
-                  <p className="download-guidance">Можно добавить до 10 ссылок, по одной в строке. Профили и целые каналы пока не поддерживаются.</p>
+                  <p className="download-guidance">Подойдут ссылки вида ok.ru/video/… и vkvideo.ru/video-…. Профили и целые каналы пока не поддерживаются.</p>
                 </div>
 
                 <div className="utility-row"><ProxySettings /></div>
