@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
@@ -6,6 +7,15 @@ from desktop_sidecar import PACKAGED_YTDLP_FLAG, main, parse_parent_pid
 
 
 class DesktopSidecarRoutingTests(unittest.TestCase):
+    def test_local_edit_is_enabled_only_by_authenticated_desktop_shell(self):
+        repository = Path(__file__).resolve().parent.parent
+        shell = (repository / "frontend" / "src-tauri" / "src" / "lib.rs").read_text(encoding="utf-8")
+        production = (repository / "docker-compose.production.yml").read_text(encoding="utf-8")
+
+        self.assertIn('.env("ECLIPSE_MEDIA_SESSION_TOKEN", &token)', shell)
+        self.assertIn('.env("ECLIPSE_MEDIA_LOCAL_EDIT_ENABLED", "true")', shell)
+        self.assertIn('ECLIPSE_MEDIA_LOCAL_EDIT_ENABLED: "false"', production)
+
     def test_parent_pid_parser_accepts_only_a_windows_pid(self):
         self.assertIsNone(parse_parent_pid(None))
         self.assertIsNone(parse_parent_pid(""))

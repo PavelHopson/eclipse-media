@@ -181,11 +181,11 @@ class ExportAuthorization:
 
 
 class LocalExportGate:
-    """Single-run, in-memory permission state. Not connected to an executor.
+    """Single-run, in-memory permission state used by a trusted host runtime.
 
     The host must authenticate the human separately, re-read current scope and
     source from its own registry, and call cancel/revoke on authority changes.
-    A future worker must assert_active again before finalizing output. Multi-
+    The worker must assert_active again before finalizing output. Multi-
     process use needs a transactional durable equivalent, not a copied object.
     """
 

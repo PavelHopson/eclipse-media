@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from main import (
     DownloadRequest,
     InfoRequest,
+    LocalEditStartRequest,
     TranscriptRequest,
     _build_download_command,
     _run_download,
@@ -20,6 +21,8 @@ from main import (
     get_info,
     get_transcript,
     jobs,
+    local_edit_capability,
+    local_edit_sources,
     parse_progress_line,
     parse_ytdlp_title_line,
     parse_ytdlp_phase_line,
@@ -35,6 +38,23 @@ from main import (
 
 
 class MediaUrlValidationTests(unittest.TestCase):
+    def test_public_runtime_exposes_preview_only_and_rejects_export_sources(self):
+        capability = local_edit_capability()["data"]
+        self.assertFalse(capability["enabled"])
+        self.assertEqual(capability["mode"], "preview-only")
+        with self.assertRaises(HTTPException) as error:
+            local_edit_sources()
+        self.assertEqual(error.exception.status_code, 409)
+
+    def test_local_edit_start_schema_rejects_unknown_worker_arguments(self):
+        with self.assertRaises(ValidationError):
+            LocalEditStartRequest(
+                run_id="00000000-0000-4000-8000-000000000001",
+                approval_token="x" * 43,
+                plan_json="{}",
+                ffmpeg=["-i", "http://127.0.0.1/private"],
+            )
+
     def test_desktop_session_token_is_required_and_compared_exactly(self):
         expected = "A" * 43
 

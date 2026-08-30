@@ -1,16 +1,17 @@
 # Eclipse Media Roadmap
 
-Последнее обновление: **28.08.2026**
+Последнее обновление: **30.08.2026**
 
-### 2026-08-28 — контракт безопасного монтажа, без executor
+### 2026-08-30 — безопасный desktop trim runtime
 
 - [x] Чистый серверный `eclipse.local-edit-plan.v1`: строгая схема, один trim, source hash,
       scope workspace/user/employee/run/revision, фиксированный профиль без paths/URLs/raw CLI.
 - [x] Одноразовое подтверждение на 120 секунд; отмена/отзыв, проверка исходника и плана,
-      защита от повторного и параллельного использования. 19 offline tests, полный backend suite 54/54;
+      защита от повторного и параллельного использования.
       новых зависимостей нет.
-- [ ] Связать контракт с доверенной сессией и source registry, внедрить isolated worker,
-      atomic output/receipt и реальный local MP4 smoke после закрытия предыдущих gates.
+- [x] Связать контракт с desktop session token и registry завершённых MP4; добавить immutable staging,
+      fixed FFmpeg argv/protocol allowlist, timeout/cancel, atomic output, проверенный receipt и
+      реальный audio/video smoke. Backend 61/61, frontend 15/15, Rust 3/3.
 
 Подробности: [границы контракта](docs/safe-local-edit-contract.md). Runtime и production не включены.
 
@@ -67,6 +68,15 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-30 - safe local MP4 trim runtime (v1.4.0)
+
+- Desktop sidecar включает локальный export только вместе с секретным session token; публичный
+  production остаётся preview-only и не принимает export jobs.
+- Готовый MP4 копируется в immutable staging, привязывается к SHA-256 и one-time approval.
+  FFmpeg получает только фиксированный H.264/AAC 720p профиль без URL или raw CLI.
+- UI ведёт через preview, права, стадии worker, проверенный receipt, cancel и native save dialog.
+- Production frontend переведён на internal Docker network; контейнеры получили PID/CPU/RAM limits.
+
 ### 2026-08-23 - safe in-place installer update (v1.3.3)
 
 - NSIS preinstall gate теперь проверяет и основной desktop-процесс, и фоновый

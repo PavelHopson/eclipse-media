@@ -157,6 +157,123 @@ export async function deleteJob(jobId: string): Promise<void> {
   await apiFetch(`/job/${jobId}`, { method: 'DELETE' });
 }
 
+export interface LocalEditCapability {
+  enabled: boolean;
+  ready: boolean;
+  mode: 'desktop-local' | 'preview-only';
+  profile: 'mp4-h264-aac-720p-v1';
+  maxSourceBytes: number;
+  maxSourceMs: number;
+  maxClipMs: number;
+  reason: string | null;
+}
+
+export interface LocalEditSourceOption {
+  jobId: string;
+  filename: string;
+}
+
+export interface LocalEditSource extends LocalEditSourceOption {
+  assetId: string;
+  sha256: string;
+  sizeBytes: number;
+  durationMs: number;
+  hasAudio: boolean;
+}
+
+export type LocalEditRunState =
+  | 'approved'
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled';
+
+export interface LocalEditRun {
+  runId: string;
+  state: LocalEditRunState;
+  phase: 'waiting' | 'verifying' | 'encoding' | 'validating' | 'complete' | 'failed' | 'cancelled';
+  createdAt: number;
+  planDigest: string;
+  source: LocalEditSource;
+  errorCode?: string;
+  result?: {
+    jobId: string;
+    filename: string;
+    sha256: string;
+    sizeBytes: number;
+    durationMs: number;
+  };
+}
+
+export async function getLocalEditCapability(): Promise<LocalEditCapability> {
+  const res = await apiFetch<{ ok: boolean; data: LocalEditCapability }>('/local-edit/capability');
+  return res.data;
+}
+
+export async function listLocalEditSources(): Promise<LocalEditSourceOption[]> {
+  const res = await apiFetch<{ ok: boolean; data: LocalEditSourceOption[] }>('/local-edit/sources');
+  return res.data;
+}
+
+export async function registerLocalEditSource(jobId: string): Promise<LocalEditSource> {
+  const res = await apiFetch<{ ok: boolean; data: LocalEditSource }>('/local-edit/source', {
+    method: 'POST',
+    body: JSON.stringify({ job_id: jobId }),
+  });
+  return res.data;
+}
+
+export async function approveLocalEdit(planJson: string, rightsConfirmed: boolean): Promise<{
+  runId: string;
+  approvalToken: string;
+  expiresInSeconds: number;
+  planDigest: string;
+}> {
+  const res = await apiFetch<{
+    ok: boolean;
+    data: {
+      runId: string;
+      approvalToken: string;
+      expiresInSeconds: number;
+      planDigest: string;
+    };
+  }>('/local-edit/approve', {
+    method: 'POST',
+    body: JSON.stringify({ plan_json: planJson, rights_confirmed: rightsConfirmed }),
+  });
+  return res.data;
+}
+
+export async function startLocalEdit(
+  runId: string,
+  approvalToken: string,
+  planJson: string,
+): Promise<LocalEditRun> {
+  const res = await apiFetch<{ ok: boolean; data: LocalEditRun }>('/local-edit/start', {
+    method: 'POST',
+    body: JSON.stringify({
+      run_id: runId,
+      approval_token: approvalToken,
+      plan_json: planJson,
+    }),
+  });
+  return res.data;
+}
+
+export async function getLocalEditRun(runId: string): Promise<LocalEditRun> {
+  const res = await apiFetch<{ ok: boolean; data: LocalEditRun }>(`/local-edit/run/${encodeURIComponent(runId)}`);
+  return res.data;
+}
+
+export async function cancelLocalEdit(runId: string): Promise<LocalEditRun> {
+  const res = await apiFetch<{ ok: boolean; data: LocalEditRun }>(
+    `/local-edit/run/${encodeURIComponent(runId)}`,
+    { method: 'DELETE' },
+  );
+  return res.data;
+}
+
 export interface TranscriptSegment {
   start: string;
   end: string;

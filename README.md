@@ -26,13 +26,15 @@
 - Отдельная release-video студия: брендовый template, browser preview и offline contract check;
   HyperFrames check/render работают через проверенный exact CLI и воспроизводимый lockfile
 - Локальная проверка `eclipse.release-storyboard.v1` из Shotforge до render без загрузки, shell и side effects
+- Desktop-only локальная обрезка готового MP4: preview → права → H.264/AAC 720p → проверка → native save
 
-## Безопасный локальный монтаж — подготовка
+## Безопасный локальный монтаж
 
-Добавлен [офлайн-контракт плана и разрешения на экспорт](docs/safe-local-edit-contract.md):
-один интервал, фиксированный профиль, привязка к исходнику и запуску, одноразовое подтверждение
-и отмена. 19 локальных тестов проходят. FFmpeg worker и export endpoint **ещё не подключены**;
-существующий импорт плана не означает готовый монтажный движок.
+Добавлен [контракт и desktop runtime](docs/safe-local-edit-contract.md): один интервал до 60 секунд,
+фиксированный MP4 H.264/AAC 720p, immutable source staging, SHA-256, одноразовое подтверждение,
+timeout/cancel, повторная проверка результата и сохранение через нативный диалог. Клиент не передаёт
+пути, URL или FFmpeg arguments. Публичный web-production остаётся preview-only; реальный экспорт
+включает только Tauri sidecar с действующим desktop session token.
 
 ## Product radar
 
@@ -249,7 +251,9 @@ Eclipse Media uses the local `eclipse-forge.visual-system.v1` snapshot in the `p
 
 Production uses docker-compose.production.yml: the frontend is built once and served by a
 non-root NGINX container, the FastAPI backend runs as a non-root user, both containers drop Linux
-capabilities and use read-only filesystems, and only the frontend is bound to host loopback.
+capabilities and use read-only filesystems, PID/CPU/RAM limits, and only the frontend is bound to
+host loopback. Frontend находится в internal Docker network без egress; backend подключён к отдельной
+egress network для allowlisted download workflow. Local edit в production явно выключен.
 
 The Deploy production workflow is manual, master-only and attached to the protected GitHub
 production environment. Configure DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH, DEPLOY_SSH_KEY and

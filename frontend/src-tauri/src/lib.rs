@@ -186,6 +186,7 @@ fn spawn_media_core(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         .env_clear()
         .args(["--port", &port.to_string()])
         .env("ECLIPSE_MEDIA_SESSION_TOKEN", &token)
+        .env("ECLIPSE_MEDIA_LOCAL_EDIT_ENABLED", "true")
         .env("ECLIPSE_MEDIA_PARENT_PID", std::process::id().to_string())
         .env("ECLIPSE_MEDIA_DOWNLOAD_DIR", &data_dir);
 

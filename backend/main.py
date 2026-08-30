@@ -30,6 +30,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
+from local_edit_contract import EditContractError
+from local_edit_runtime import LocalEditRuntime, LocalEditRuntimeError
+
 DOWNLOAD_DIR = os.path.abspath(
     os.environ.get("ECLIPSE_MEDIA_DOWNLOAD_DIR")
     or os.path.join(os.path.dirname(__file__), "downloads")
@@ -81,6 +84,30 @@ WINDOWS_RESERVED_FILENAMES = {
 DESKTOP_SESSION_TOKEN = os.environ.get("ECLIPSE_MEDIA_SESSION_TOKEN", "")
 if DESKTOP_SESSION_TOKEN and not re.fullmatch(r"[A-Za-z0-9_-]{43,128}", DESKTOP_SESSION_TOKEN):
     raise RuntimeError("ECLIPSE_MEDIA_SESSION_TOKEN must be a 43-128 character URL-safe token")
+LOCAL_EDIT_ENABLED = os.environ.get("ECLIPSE_MEDIA_LOCAL_EDIT_ENABLED", "").lower() == "true"
+if LOCAL_EDIT_ENABLED and not DESKTOP_SESSION_TOKEN:
+    raise RuntimeError("Local edit requires an authenticated desktop session")
+
+
+def _store_local_edit_result(job_id, path, filename):
+    with jobs_lock:
+        jobs[job_id] = {
+            "status": "done",
+            "phase": "complete",
+            "created_at": time.time(),
+            "progress": 100.0,
+            "file": str(path),
+            "filename": filename,
+            "error": None,
+            "process": None,
+        }
+
+
+local_edit_runtime = LocalEditRuntime(
+    DOWNLOAD_DIR,
+    enabled=LOCAL_EDIT_ENABLED,
+    on_success=_store_local_edit_result,
+)
 
 
 # ─── Cleanup background task ──────────────────────────────────────────────────
@@ -106,6 +133,7 @@ def cleanup_loop():
                     os.remove(fpath)
                 except OSError:
                     pass
+        local_edit_runtime.cleanup(now - FILE_TTL_SECONDS)
 
 
 @asynccontextmanager
@@ -117,7 +145,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.3.3", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.4.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -188,6 +216,27 @@ class TranscriptRequest(BaseModel):
 
 class ProxyTestRequest(BaseModel):
     proxy: str
+
+
+class LocalEditSourceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    job_id: str
+
+
+class LocalEditApproveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    plan_json: str
+    rights_confirmed: bool
+
+
+class LocalEditStartRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    run_id: str
+    approval_token: str
+    plan_json: str
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -594,11 +643,144 @@ def run_ytdlp_info(command: list[str]) -> subprocess.CompletedProcess[str]:
     return result
 
 
+LOCAL_EDIT_ERRORS = {
+    "LOCAL_EDIT_DISABLED": (409, "Локальный экспорт доступен только в приложении Eclipse Media"),
+    "FFMPEG_UNAVAILABLE": (503, "FFmpeg не найден. Установите FFmpeg и перезапустите приложение"),
+    "SOURCE_NOT_READY": (409, "Исходный MP4 ещё не готов"),
+    "SOURCE_OUTSIDE_REGISTRY": (400, "Разрешены только файлы из завершённых задач Eclipse Media"),
+    "SOURCE_NOT_REGISTERED": (409, "Сначала выберите и проверьте исходный MP4"),
+    "UNSUPPORTED_SOURCE": (415, "Для локального монтажа нужен MP4"),
+    "INVALID_MEDIA": (422, "Не удалось проверить структуру MP4"),
+    "SOURCE_LIMIT_EXCEEDED": (413, "MP4 превышает безопасный лимит"),
+    "SOURCE_CHANGED": (409, "Исходник изменился. Создайте новый предпросмотр"),
+    "HUMAN_APPROVAL_REQUIRED": (403, "Подтвердите право на обработку файла"),
+    "RUN_NOT_FOUND": (404, "Операция монтажа не найдена"),
+    "RUN_ALREADY_STARTED": (409, "Это разрешение уже использовано"),
+    "EXPORT_BUSY": (429, "Дождитесь завершения текущего экспорта"),
+    "EXPIRED_APPROVAL": (409, "Разрешение истекло. Подтвердите экспорт ещё раз"),
+    "INVALID_APPROVAL": (403, "Разрешение недействительно"),
+    "APPROVAL_MISMATCH": (409, "План изменился после подтверждения"),
+    "INVALID_JSON": (400, "Некорректный план монтажа"),
+    "INVALID_SCHEMA": (400, "Некорректный план монтажа"),
+    "UNSUPPORTED_PLAN": (400, "Профиль монтажа не поддерживается"),
+    "PLAN_TOO_LARGE": (413, "План монтажа слишком большой"),
+    "INVALID_TRIM": (400, "Проверьте границы клипа"),
+    "TRIM_OUT_OF_SOURCE": (400, "Границы клипа выходят за исходник"),
+    "ENCODER_FAILED": (422, "FFmpeg не смог подготовить клип"),
+    "OUTPUT_INVALID": (500, "Результат экспорта не прошёл проверку"),
+    "OUTPUT_LIMIT_EXCEEDED": (500, "Результат экспорта превышает лимит"),
+    "OUTPUT_PROFILE_MISMATCH": (500, "Результат не соответствует безопасному профилю"),
+    "WORKER_TIMEOUT": (504, "Экспорт остановлен по тайм-ауту"),
+    "LOCAL_EDIT_FAILED": (500, "Не удалось безопасно подготовить клип"),
+}
+
+
+def raise_local_edit_http(error: Exception):
+    status, message = LOCAL_EDIT_ERRORS.get(str(error), (400, "Операция монтажа отклонена"))
+    raise HTTPException(status, message) from None
+
+
+def _validated_run_id(value: str) -> str:
+    try:
+        valid = str(uuid.UUID(value)) == value
+    except (ValueError, AttributeError):
+        valid = False
+    if not valid:
+        raise HTTPException(400, "Некорректный идентификатор операции")
+    return value
+
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "1.3.3", "desktop_session": bool(DESKTOP_SESSION_TOKEN)}
+    return {
+        "ok": True,
+        "version": "1.4.0",
+        "desktop_session": bool(DESKTOP_SESSION_TOKEN),
+        "local_edit": local_edit_runtime.capability()["mode"],
+    }
+
+
+@app.get("/api/local-edit/capability")
+def local_edit_capability():
+    return {"ok": True, "data": local_edit_runtime.capability()}
+
+
+@app.get("/api/local-edit/sources")
+def local_edit_sources():
+    capability = local_edit_runtime.capability()
+    if not capability["ready"]:
+        raise_local_edit_http(LocalEditRuntimeError(capability["reason"]))
+    with jobs_lock:
+        available = [
+            {
+                "jobId": job_id,
+                "filename": job.get("filename") or "video.mp4",
+            }
+            for job_id, job in jobs.items()
+            if (
+                re.fullmatch(r"[0-9a-f]{32}", job_id)
+                and job.get("status") == "done"
+                and isinstance(job.get("file"), str)
+                and os.path.isfile(job["file"])
+                and os.path.splitext(job["file"])[1].lower() == ".mp4"
+            )
+        ]
+    return {"ok": True, "data": available}
+
+
+@app.post("/api/local-edit/source")
+def local_edit_source(req: LocalEditSourceRequest):
+    if re.fullmatch(r"[0-9a-f]{32}", req.job_id) is None:
+        raise HTTPException(400, "Некорректный идентификатор исходника")
+    with jobs_lock:
+        job = dict(jobs.get(req.job_id) or {})
+    try:
+        source = local_edit_runtime.register_job(req.job_id, job)
+    except (LocalEditRuntimeError, EditContractError) as error:
+        raise_local_edit_http(error)
+    return {"ok": True, "data": source}
+
+
+@app.post("/api/local-edit/approve")
+def local_edit_approve(req: LocalEditApproveRequest):
+    try:
+        approval = local_edit_runtime.approve(
+            req.plan_json,
+            rights_confirmed=req.rights_confirmed,
+        )
+    except (LocalEditRuntimeError, EditContractError) as error:
+        raise_local_edit_http(error)
+    return {"ok": True, "data": approval}
+
+
+@app.post("/api/local-edit/start")
+def local_edit_start(req: LocalEditStartRequest):
+    run_id = _validated_run_id(req.run_id)
+    try:
+        run = local_edit_runtime.start(run_id, req.approval_token, req.plan_json)
+    except (LocalEditRuntimeError, EditContractError) as error:
+        raise_local_edit_http(error)
+    return {"ok": True, "data": run}
+
+
+@app.get("/api/local-edit/run/{run_id}")
+def local_edit_run(run_id: str):
+    try:
+        run = local_edit_runtime.status(_validated_run_id(run_id))
+    except (LocalEditRuntimeError, EditContractError) as error:
+        raise_local_edit_http(error)
+    return {"ok": True, "data": run}
+
+
+@app.delete("/api/local-edit/run/{run_id}")
+def cancel_local_edit_run(run_id: str):
+    try:
+        run = local_edit_runtime.cancel(_validated_run_id(run_id))
+    except (LocalEditRuntimeError, EditContractError) as error:
+        raise_local_edit_http(error)
+    return {"ok": True, "data": run}
 
 
 @app.post("/api/proxy-test")
