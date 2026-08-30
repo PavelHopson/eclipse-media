@@ -145,7 +145,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.4.0", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.4.1", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -696,7 +696,7 @@ def _validated_run_id(value: str) -> str:
 def health():
     return {
         "ok": True,
-        "version": "1.4.0",
+        "version": "1.4.1",
         "desktop_session": bool(DESKTOP_SESSION_TOKEN),
         "local_edit": local_edit_runtime.capability()["mode"],
     }

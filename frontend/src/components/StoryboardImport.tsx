@@ -2,14 +2,20 @@ import { useState } from 'react';
 import { parseStoryboardJson, type ReleaseStoryboard } from '../services/storyboardContract';
 import '../storyboard-import.css';
 
-export function StoryboardImport() {
+interface StoryboardImportProps {
+  onUseInBrief?: (storyboard: ReleaseStoryboard) => void;
+}
+
+export function StoryboardImport({ onUseInBrief }: StoryboardImportProps) {
   const [storyboard, setStoryboard] = useState<ReleaseStoryboard | null>(null);
   const [error, setError] = useState('');
+  const [transferred, setTransferred] = useState(false);
 
   async function importFile(file: File | undefined) {
     if (!file) return;
     setStoryboard(null);
     setError('');
+    setTransferred(false);
     try {
       if (file.size > 64 * 1024) throw new Error('Файл больше 64 KB. Это не storyboard-контракт Shotforge.');
       if (file.type && file.type !== 'application/json') throw new Error('Выберите JSON-файл из Shotforge.');
@@ -37,7 +43,12 @@ export function StoryboardImport() {
         {!storyboard ? <div className="storyboard-import__empty"><strong>Ожидается eclipse.release-storyboard.v1</strong><span>5 сцен · 15 секунд · approval required</span></div> : <>
           <div className="storyboard-import__heading"><div><span>VALIDATED</span><h3>{storyboard.title}</h3></div><b>{storyboard.format} · {storyboard.duration} sec</b></div>
           <ol>{storyboard.scenes.map((scene) => <li key={scene.id}><time>{scene.start}–{scene.start + scene.duration}s</time><div><span>{scene.eyebrow}</span><strong>{scene.headline}</strong><p>{scene.body}</p></div></li>)}</ol>
-          <p className="storyboard-import__approval">Следующий шаг: вручную перенесите подтверждённый текст в editable brief. Автопубликация отключена.</p>
+          <div className="storyboard-import__handoff">
+            <p className="storyboard-import__approval">Следующий шаг: перенесите пять проверенных сцен в editable brief. Автопубликация отключена.</p>
+            {onUseInBrief && <button type="button" onClick={() => { onUseInBrief(storyboard); setTransferred(true); }}>
+              {transferred ? 'Перенесено в бриф' : 'Перенести 5 сцен в бриф'}
+            </button>}
+          </div>
         </>}
       </div>
     </section>

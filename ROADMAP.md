@@ -13,7 +13,7 @@
       fixed FFmpeg argv/protocol allowlist, timeout/cancel, atomic output, проверенный receipt и
       реальный audio/video smoke. Backend 61/61, frontend 15/15, Rust 3/3.
 
-Подробности: [границы контракта](docs/safe-local-edit-contract.md). Runtime и production не включены.
+Подробности: [границы контракта](docs/safe-local-edit-contract.md). Desktop runtime включён; публичный production остаётся preview-only.
 
 ## P0
 
@@ -35,7 +35,7 @@
       Everything без servers/history и FocuSee только для public-demo benchmark.
 - [x] Проверить metadata/integrity/signatures `hyperframes@0.7.88`, добавить exact devDependency +
       lockfile и подтвердить unified `check` и реальный 1080p render.
-- [ ] Добавить editable release brief и безопасную генерацию composition variables без shell interpolation.
+- [x] Добавить editable release brief и безопасную генерацию composition variables без shell interpolation.
 - [x] Добавить fail-closed импорт `eclipse.release-storyboard.v1` из Shotforge и локальный preview текста без shell/render side effects.
 - [ ] Добавить локальный render queue с size/time limits, cancellation и redacted operation audit.
 - [x] Восстановить frontend lint gate: ESLint, TypeScript и React rules закреплены exact
@@ -68,6 +68,16 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-30 - editable release brief (v1.4.1)
+
+- Release Studio получила понятный редактор пяти фиксированных сцен, синхронизацию формата и явный
+  перенос проверенной раскадровки Shotforge без автоматического render или publish.
+- `eclipse.release-brief.v1` и `eclipse.release-variables.v1` отклоняют неизвестные поля,
+  изменённый timeline, управляющие/bidi-символы и JSON больше 32 KB. Экспорт не содержит URL,
+  путей или команд и фиксирует `network`, `shell`, `render`, `publish` как `false`.
+- Variables доступны только после ручной проверки фактов и отсутствия секретов/персональных данных;
+  session draft сохраняется только по явному действию и не отправляется в сеть.
+
 ### 2026-08-30 - safe local MP4 trim runtime (v1.4.0)
 
 - Desktop sidecar включает локальный export только вместе с секретным session token; публичный

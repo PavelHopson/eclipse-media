@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { StoryboardImport } from './StoryboardImport';
+import { ReleaseBriefEditor } from './ReleaseBriefEditor';
 import { MediaAssetImport } from './MediaAssetImport';
 import { CreatorKitPanel } from './CreatorKitPanel';
 import { VideoAdPlanImport } from './VideoAdPlanImport';
+import {
+  createDefaultReleaseBrief,
+  createReleaseBriefFromStoryboard,
+  type ReleaseBriefFormat,
+} from '../services/releaseBriefContract';
+import type { ReleaseStoryboard } from '../services/storyboardContract';
 
 const RELEASE_DIR_COMMAND = 'cd frontend/public/studio/eclipse-release';
 const CHECK_COMMAND = `${RELEASE_DIR_COMMAND}; npm run check`;
@@ -35,7 +42,27 @@ function PlayIcon() {
 export function ReleaseStudio() {
   const [copied, setCopied] = useState<string | null>(null);
   const [format, setFormat] = useState<ReleaseFormat>('landscape');
+  const [brief, setBrief] = useState(() => createDefaultReleaseBrief());
+  const [briefRevision, setBriefRevision] = useState(0);
   const renderCommand = FORMATS[format].command;
+
+  function releaseFormatFor(item: ReleaseFormat): ReleaseBriefFormat {
+    return FORMATS[item].label;
+  }
+
+  function selectFormat(item: ReleaseFormat) {
+    setFormat(item);
+    setBrief((current) => ({ ...current, format: releaseFormatFor(item) }));
+    setBriefRevision((current) => current + 1);
+  }
+
+  function useStoryboard(storyboard: ReleaseStoryboard) {
+    const nextFormat = (Object.keys(FORMATS) as ReleaseFormat[])
+      .find((item) => FORMATS[item].label === storyboard.format) ?? 'landscape';
+    setFormat(nextFormat);
+    setBrief(createReleaseBriefFromStoryboard(storyboard));
+    setBriefRevision((current) => current + 1);
+  }
 
   async function copyCommand(value: string, label: string) {
     try {
@@ -96,7 +123,7 @@ export function ReleaseStudio() {
           </div>
           <div className="studio-format-switch" role="group" aria-label="Формат видео">
             {(Object.keys(FORMATS) as ReleaseFormat[]).map((item) => (
-              <button key={item} type="button" className={format === item ? 'is-active' : ''} aria-pressed={format === item} onClick={() => setFormat(item)}>
+              <button key={item} type="button" className={format === item ? 'is-active' : ''} aria-pressed={format === item} onClick={() => selectFormat(item)}>
                 {FORMATS[item].label}
               </button>
             ))}
@@ -165,7 +192,8 @@ export function ReleaseStudio() {
         </aside>
       </div>
 
-      <StoryboardImport />
+      <StoryboardImport onUseInBrief={useStoryboard} />
+      <ReleaseBriefEditor key={briefRevision} draft={brief} onChange={setBrief} />
       <MediaAssetImport />
       <VideoAdPlanImport />
       <CreatorKitPanel />
