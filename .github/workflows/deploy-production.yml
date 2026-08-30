@@ -50,10 +50,10 @@ jobs:
           ECLIPSE_MEDIA_PORT: "18080"
         run: |
           cleanup() {
-            docker compose -p eclipse-media-smoke -f docker-compose.production.yml down -v --remove-orphans
+            docker compose -p eclipse-media -f docker-compose.production.yml down -v --remove-orphans
           }
           trap cleanup EXIT
-          docker compose -p eclipse-media-smoke -f docker-compose.production.yml up -d --no-build --wait --wait-timeout 90
+          docker compose -p eclipse-media -f docker-compose.production.yml up -d --no-build --wait --wait-timeout 90
           curl --fail --silent --show-error "http://127.0.0.1:$ECLIPSE_MEDIA_PORT/api/health" >/dev/null
 
       - name: Configure SSH trust
