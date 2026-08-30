@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const output = new URL('generated/', root);
 const outputCompositions = new URL('compositions/', output);
+const outputVendor = new URL('vendor/', output);
 const sceneIds = ['scene-signal', 'scene-inputs', 'scene-pipeline', 'scene-quality', 'scene-close'];
 const [source, manifestText, ...sceneSources] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
@@ -16,6 +17,8 @@ assert.match(source, /data-composition-id="eclipse-release-signal"/);
 assert.match(source, /data-width="1920"/);
 assert.match(source, /data-height="1080"/);
 await mkdir(outputCompositions, { recursive: true });
+await mkdir(outputVendor, { recursive: true });
+await copyFile(new URL('vendor/inter-cyrillic.woff2', root), new URL('inter-cyrillic.woff2', outputVendor));
 
 const resizeComposition = (html, width, height) => html
   .replaceAll('data-width="1920"', `data-width="${width}"`)

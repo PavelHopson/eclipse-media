@@ -15,11 +15,12 @@
   },
   "scripts": {
     "check": "node scripts/validate-template.mjs",
+    "render:queue-contract": "node scripts/validate-render-queue.mjs",
     "formats:build": "node scripts/create-format-variants.mjs",
     "hyperframes:lint": "node scripts/run-hyperframes.mjs lint .",
     "hyperframes:check": "node scripts/run-hyperframes.mjs check .",
     "hyperframes:validate": "node scripts/run-hyperframes.mjs validate .",
-    "verify": "npm run check && npm run hyperframes:check",
+    "verify": "npm run check && npm run render:queue-contract && npm run hyperframes:check",
     "preview": "node scripts/run-hyperframes.mjs preview .",
     "render": "npm run render:landscape",
     "render:landscape": "npm run formats:build && node scripts/run-hyperframes.mjs render -c generated/eclipse-release-landscape.html --output renders/eclipse-release-16x9.mp4",

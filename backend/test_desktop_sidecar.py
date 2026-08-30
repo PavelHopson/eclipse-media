@@ -15,6 +15,8 @@ class DesktopSidecarRoutingTests(unittest.TestCase):
         self.assertIn('.env("ECLIPSE_MEDIA_SESSION_TOKEN", &token)', shell)
         self.assertIn('.env("ECLIPSE_MEDIA_LOCAL_EDIT_ENABLED", "true")', shell)
         self.assertIn('ECLIPSE_MEDIA_LOCAL_EDIT_ENABLED: "false"', production)
+        self.assertIn('.env("ECLIPSE_MEDIA_RENDER_QUEUE_ENABLED", "false")', shell)
+        self.assertIn('ECLIPSE_MEDIA_RENDER_QUEUE_ENABLED: "false"', production)
 
     def test_parent_pid_parser_accepts_only_a_windows_pid(self):
         self.assertIsNone(parse_parent_pid(None))

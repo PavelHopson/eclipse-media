@@ -10,11 +10,12 @@ const expectedScenes = [
   { id: 'scene-quality', start: '9' },
   { id: 'scene-close', start: '12' },
 ];
-const [composition, preview, manifestText, gsapBytes, variantBuilder, ...sceneSources] = await Promise.all([
+const [composition, preview, manifestText, gsapBytes, interBytes, variantBuilder, ...sceneSources] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
   readFile(new URL('preview.html', root), 'utf8'),
   readFile(new URL('package.json', root), 'utf8'),
   readFile(new URL('vendor/gsap-3.14.2.min.js', root)),
+  readFile(new URL('vendor/inter-cyrillic.woff2', root)),
   readFile(new URL('scripts/create-format-variants.mjs', root), 'utf8'),
   ...expectedScenes.map(({ id }) => readFile(new URL(`compositions/${id}.html`, root), 'utf8')),
 ]);
@@ -22,6 +23,7 @@ const manifest = JSON.parse(manifestText);
 
 const expectedSri = 'sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2';
 const expectedGsapSha256 = 'c174bfce53a729418d57a8ad8625e7247c793a22fef8e2851e3cfa3de9cd8280';
+const expectedInterSha256 = '71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075';
 
 assert.match(composition, /data-composition-id="eclipse-release-signal"/);
 assert.match(composition, /data-duration="15"/);
@@ -61,8 +63,14 @@ for (const [{ id, start }, scene] of expectedScenes.map((entry, index) => [entry
   assert.match(scene, new RegExp(`window\\.__timelines\\['${id}'\\]\\s*=\\s*tl`));
   assert.doesNotMatch(scene, /<script[^>]+src=/i, `${id} must use the host's verified GSAP runtime.`);
   assert.doesNotMatch(scene, /https?:\/\//i);
+  assert.doesNotMatch(scene, /Roboto|fonts\.google/i);
+  assert.match(scene, /url\('vendor\/inter-cyrillic\.woff2'\)/);
   assert.doesNotMatch(scene, /Math\.random|Date\.now|repeat\s*:\s*-1/);
   assert.doesNotMatch(scene, /\btl\.from\s*\(/, `${id} entrances must declare both endpoints with fromTo.`);
+  for (const marker of ['eyebrow', 'headline', 'body']) {
+    assert.equal((scene.match(new RegExp(`<!--release:${marker}:start-->`, 'g')) ?? []).length, 1);
+    assert.equal((scene.match(new RegExp(`<!--release:${marker}:end-->`, 'g')) ?? []).length, 1);
+  }
 }
 
 assert.equal((composition.match(/class="scene-slot"/g) ?? []).length, expectedScenes.length);
@@ -70,6 +78,7 @@ assert.match(composition, /src="vendor\/gsap-3\.14\.2\.min\.js"/);
 assert.match(composition, new RegExp(`integrity="${expectedSri.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
 assert.match(composition, /crossorigin="anonymous"/);
 assert.equal(createHash('sha256').update(gsapBytes).digest('hex'), expectedGsapSha256);
+assert.equal(createHash('sha256').update(interBytes).digest('hex'), expectedInterSha256);
 assert.equal(`sha384-${createHash('sha384').update(gsapBytes).digest('base64')}`, expectedSri);
 assert.doesNotMatch(composition, /@hyperframes\/core|hyperframe\.runtime/i);
 assert.doesNotMatch(composition, /Math\.random|Date\.now|repeat\s*:\s*-1/);
@@ -89,8 +98,11 @@ assert.equal(manifest.formats.square.ratio, '1:1');
 assert.doesNotMatch(variantBuilder, /exec|spawn|fetch|https?:\/\//);
 assert.match(variantBuilder, /generatedSceneName/);
 assert.match(variantBuilder, /outputCompositions/);
+assert.match(variantBuilder, /outputVendor/);
+assert.match(variantBuilder, /copyFile/);
 assert.match(variantBuilder, /data-composition-src="generated\/compositions\//);
 assert.doesNotMatch(scripts, /(?:lint|check|validate|preview|render) index\.html/);
+assert.equal(manifest.scripts?.['render:queue-contract'], 'node scripts/validate-render-queue.mjs');
 assert.equal(manifest.hyperframes?.package, 'hyperframes');
 assert.equal(manifest.hyperframes?.version, '0.7.88');
 assert.match(manifest.hyperframes?.sourceCommit ?? '', /^[a-f0-9]{40}$/);

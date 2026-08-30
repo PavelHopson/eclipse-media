@@ -37,7 +37,7 @@
       lockfile и подтвердить unified `check` и реальный 1080p render.
 - [x] Добавить editable release brief и безопасную генерацию composition variables без shell interpolation.
 - [x] Добавить fail-closed импорт `eclipse.release-storyboard.v1` из Shotforge и локальный preview текста без shell/render side effects.
-- [ ] Добавить локальный render queue с size/time limits, cancellation и redacted operation audit.
+- [x] Добавить локальный render queue с size/time limits, cancellation и redacted operation audit.
 - [x] Восстановить frontend lint gate: ESLint, TypeScript и React rules закреплены exact
       devDependencies с lockfile; `npm run lint` снова является воспроизводимым quality gate.
 - [x] Перестроить главный download workspace вокруг одного сценария «ссылка → проверка → права → файл»
@@ -68,6 +68,15 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-30 - bounded local render queue (v1.5.0)
+
+- Локальный launcher включает очередь HyperFrames: один активный рендер, два ожидающих, отмена
+  дерева процесса, тайм-аут 20 минут, минимум 2 ГБ свободного места и предел MP4 512 МБ.
+- Browser передаёт только строгий текст пяти сцен и один из трёх форматов. Пути, URL, команды и
+  raw CLI отсутствуют; одноразовое подтверждение живёт 120 секунд, HTML-копия экранируется.
+- Результат проверяется как MP4, получает SHA-256 и скачивается через API; audit не хранит текст,
+  токены, stdout/stderr или локальные пути. Публичный production и Tauri pilot остаются preview-only.
+
 ### 2026-08-30 - editable release brief (v1.4.1)
 
 - Release Studio получила понятный редактор пяти фиксированных сцен, синхронизацию формата и явный

@@ -32,6 +32,8 @@ from pydantic import BaseModel, ConfigDict
 
 from local_edit_contract import EditContractError
 from local_edit_runtime import LocalEditRuntime, LocalEditRuntimeError
+from render_queue_contract import MAX_REQUEST_BYTES, RenderContractError, parse_render_request
+from render_queue_runtime import RenderQueueError, RenderQueueRuntime
 
 DOWNLOAD_DIR = os.path.abspath(
     os.environ.get("ECLIPSE_MEDIA_DOWNLOAD_DIR")
@@ -108,6 +110,7 @@ local_edit_runtime = LocalEditRuntime(
     enabled=LOCAL_EDIT_ENABLED,
     on_success=_store_local_edit_result,
 )
+render_queue_runtime = RenderQueueRuntime.from_environment()
 
 
 # ─── Cleanup background task ──────────────────────────────────────────────────
@@ -140,12 +143,15 @@ def cleanup_loop():
 async def lifespan(app: FastAPI):
     t = threading.Thread(target=cleanup_loop, daemon=True)
     t.start()
-    yield
+    try:
+        yield
+    finally:
+        render_queue_runtime.close()
 
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Eclipse Media", version="1.4.1", lifespan=lifespan)
+app = FastAPI(title="Eclipse Media", version="1.5.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -674,10 +680,79 @@ LOCAL_EDIT_ERRORS = {
     "LOCAL_EDIT_FAILED": (500, "Не удалось безопасно подготовить клип"),
 }
 
+RENDER_QUEUE_ERRORS = {
+    "RENDER_QUEUE_DISABLED": (409, "Очередь рендера доступна только в локальном Eclipse Media"),
+    "RENDER_RUNTIME_UNAVAILABLE": (503, "Локальный renderer не готов. Перезапустите Eclipse Media через launcher"),
+    "RENDER_RUNTIME_MISMATCH": (503, "Версия локального renderer не прошла проверку"),
+    "DISK_LIMIT_REACHED": (507, "Для безопасного рендера нужно не менее 2 ГБ свободного места"),
+    "REQUEST_TOO_LARGE": (413, "Данные рендера превышают лимит 32 КБ"),
+    "INVALID_JSON": (400, "Не удалось прочитать данные рендера"),
+    "DUPLICATE_FIELD": (400, "В данных рендера есть повторяющиеся поля"),
+    "INVALID_SCHEMA": (400, "Состав данных рендера не поддерживается"),
+    "UNSUPPORTED_REQUEST": (400, "Шаблон или формат рендера не поддерживается"),
+    "INVALID_TEXT": (400, "Проверьте текст сцен"),
+    "SENSITIVE_TEXT": (400, "Текст похож на секрет или ключ доступа"),
+    "UNSAFE_TEXT": (400, "Ссылки в тексте релизного ролика запрещены"),
+    "UNSAFE_EXECUTION": (400, "Параметры выполнения изменять нельзя"),
+    "INVALID_TIMELINE": (400, "Timeline должен содержать пять фиксированных сцен"),
+    "HUMAN_APPROVAL_REQUIRED": (403, "Подтвердите факты, отсутствие секретов и просмотр макета"),
+    "INVALID_REQUEST": (400, "Данные рендера отклонены"),
+    "INVALID_APPROVAL": (403, "Подтверждение рендера недействительно"),
+    "EXPIRED_APPROVAL": (409, "Подтверждение истекло. Проверьте макет ещё раз"),
+    "APPROVAL_MISMATCH": (409, "Текст изменился после подтверждения"),
+    "QUEUE_FULL": (429, "Очередь заполнена: дождитесь или отмените одну из задач"),
+    "APPROVAL_LIMIT_REACHED": (429, "Слишком много неподтверждённых операций. Подождите две минуты"),
+    "JOB_NOT_FOUND": (404, "Задача рендера не найдена"),
+    "RESULT_NOT_READY": (409, "Результат рендера ещё не готов"),
+    "WORKER_TIMEOUT": (504, "Рендер остановлен по тайм-ауту"),
+    "RENDER_FAILED": (422, "Локальный renderer не смог собрать ролик"),
+    "OUTPUT_INVALID": (500, "Результат рендера не прошёл проверку"),
+    "OUTPUT_LIMIT_EXCEEDED": (500, "Результат рендера превышает лимит 512 МБ"),
+}
+
 
 def raise_local_edit_http(error: Exception):
     status, message = LOCAL_EDIT_ERRORS.get(str(error), (400, "Операция монтажа отклонена"))
     raise HTTPException(status, message) from None
+
+
+def raise_render_queue_http(error: Exception):
+    status, message = RENDER_QUEUE_ERRORS.get(str(error), (400, "Операция рендера отклонена"))
+    raise HTTPException(status, message) from None
+
+
+LOCAL_RENDER_ORIGINS = {
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://tauri.localhost",
+    "tauri://localhost",
+}
+
+
+def require_local_render_origin(request: Request):
+    """CSRF guard for browser launcher; desktop requests already use a secret session header."""
+    if DESKTOP_SESSION_TOKEN:
+        return
+    origin = request.headers.get("Origin")
+    if origin not in LOCAL_RENDER_ORIGINS:
+        raise HTTPException(403, "Запустите рендер из локального интерфейса Eclipse Media")
+
+
+async def parse_render_request_http(request: Request):
+    content_type = request.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+    if content_type != "application/json":
+        raise HTTPException(415, "Для рендера требуется JSON")
+    try:
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > MAX_REQUEST_BYTES:
+                raise RenderContractError("REQUEST_TOO_LARGE")
+            body.extend(chunk)
+        return parse_render_request(bytes(body))
+    except RenderContractError as error:
+        raise_render_queue_http(error)
 
 
 def _validated_run_id(value: str) -> str:
@@ -696,10 +771,75 @@ def _validated_run_id(value: str) -> str:
 def health():
     return {
         "ok": True,
-        "version": "1.4.1",
+        "version": "1.5.0",
         "desktop_session": bool(DESKTOP_SESSION_TOKEN),
         "local_edit": local_edit_runtime.capability()["mode"],
+        "render_queue": render_queue_runtime.capability()["mode"],
     }
+
+
+@app.get("/api/render-queue/capability")
+def render_queue_capability():
+    return {"ok": True, "data": render_queue_runtime.capability()}
+
+
+@app.get("/api/render-queue/jobs")
+def render_queue_jobs():
+    return {"ok": True, "data": render_queue_runtime.list_jobs()}
+
+
+@app.get("/api/render-queue/audit")
+def render_queue_audit():
+    return {"ok": True, "data": render_queue_runtime.audit()}
+
+
+@app.post("/api/render-queue/approvals")
+async def approve_render_queue(request: Request):
+    require_local_render_origin(request)
+    render_request = await parse_render_request_http(request)
+    try:
+        approval = render_queue_runtime.approve(render_request)
+    except RenderQueueError as error:
+        raise_render_queue_http(error)
+    return JSONResponse({"ok": True, "data": approval}, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/render-queue/jobs")
+async def submit_render_queue(request: Request):
+    require_local_render_origin(request)
+    render_request = await parse_render_request_http(request)
+    try:
+        job = render_queue_runtime.submit(
+            render_request,
+            request.headers.get("X-Eclipse-Render-Approval"),
+        )
+    except RenderQueueError as error:
+        raise_render_queue_http(error)
+    return JSONResponse({"ok": True, "data": job}, headers={"Cache-Control": "no-store"})
+
+
+@app.delete("/api/render-queue/jobs/{job_id}")
+def cancel_render_queue(job_id: str, request: Request):
+    require_local_render_origin(request)
+    try:
+        job = render_queue_runtime.cancel(job_id)
+    except RenderQueueError as error:
+        raise_render_queue_http(error)
+    return {"ok": True, "data": job}
+
+
+@app.get("/api/render-queue/jobs/{job_id}/file")
+def render_queue_file(job_id: str):
+    try:
+        path, filename = render_queue_runtime.result_path(job_id)
+    except RenderQueueError as error:
+        raise_render_queue_http(error)
+    return FileResponse(
+        path,
+        media_type="video/mp4",
+        filename=filename,
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 @app.get("/api/local-edit/capability")

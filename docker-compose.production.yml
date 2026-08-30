@@ -5,6 +5,7 @@ services:
     environment:
       ECLIPSE_MEDIA_ALLOW_REMOTE_COMPONENTS: "false"
       ECLIPSE_MEDIA_LOCAL_EDIT_ENABLED: "false"
+      ECLIPSE_MEDIA_RENDER_QUEUE_ENABLED: "false"
       HOME: /tmp
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"

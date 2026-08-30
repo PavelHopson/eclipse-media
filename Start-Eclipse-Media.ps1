@@ -15,6 +15,7 @@ $ProgressPreference = 'SilentlyContinue'
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backendDir = Join-Path $repoRoot 'backend'
 $frontendDir = Join-Path $repoRoot 'frontend'
+$renderWorkspace = Join-Path $frontendDir 'public\studio\eclipse-release'
 $runtimeDir = Join-Path $repoRoot '.runtime'
 $venvDir = Join-Path $backendDir '.venv'
 $venvPython = Join-Path $venvDir 'Scripts\python.exe'
@@ -174,6 +175,21 @@ try {
         Set-Content -LiteralPath $frontendMarker -Value $lockHash -Encoding ascii
     }
 
+    $renderLockfile = Join-Path $renderWorkspace 'package-lock.json'
+    $renderMarker = Join-Path $renderWorkspace 'node_modules\.eclipse-lock-sha256'
+    $renderLockHash = Get-Sha256 $renderLockfile
+    $installedRenderHash = if (Test-Path -LiteralPath $renderMarker) { (Get-Content -LiteralPath $renderMarker -Raw).Trim() } else { '' }
+    if (-not (Test-Path -LiteralPath (Join-Path $renderWorkspace 'node_modules')) -or $renderLockHash -ne $installedRenderHash) {
+        Write-Step 'Installing exact local render dependencies...'
+        & $npm.Source ci --prefix $renderWorkspace --ignore-scripts --no-audit
+        if ($LASTEXITCODE -ne 0) { throw 'Render dependency installation failed.' }
+        Set-Content -LiteralPath $renderMarker -Value $renderLockHash -Encoding ascii
+    }
+
+    $env:ECLIPSE_MEDIA_RENDER_QUEUE_ENABLED = 'true'
+    $env:ECLIPSE_MEDIA_RENDER_WORKSPACE = $renderWorkspace
+    $env:ECLIPSE_MEDIA_RENDER_NODE = $node.Source
+
     if (-not (Test-EclipseBackend)) {
         Write-Step 'Starting local API...'
         $backendProcess = Start-Process -FilePath $venvPython `
@@ -210,6 +226,7 @@ try {
     }
 
     Write-Host "`n  Ready: http://127.0.0.1:5173" -ForegroundColor Green
+    Write-Host '  Local render queue: 1 active + 2 waiting, cancel available.' -ForegroundColor DarkGray
     Write-Host '  Keep this window open. Press Enter to stop services.' -ForegroundColor DarkGray
     if (-not $NoBrowser) {
         Start-Process 'http://127.0.0.1:5173'

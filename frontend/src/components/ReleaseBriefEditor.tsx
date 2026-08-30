@@ -1,6 +1,7 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import {
   createDefaultReleaseBrief,
+  buildReleaseVariables,
   parseReleaseBriefJson,
   serializeReleaseBriefDraft,
   serializeReleaseVariables,
@@ -9,6 +10,7 @@ import {
   type ReleaseBriefReview,
   type ReleaseBriefScene,
 } from '../services/releaseBriefContract';
+import { RenderQueuePanel } from './RenderQueuePanel';
 
 const SESSION_KEY = 'eclipse.media.release-brief.v1';
 const SCENE_LABELS = ['Сигнал', 'Данные', 'Процесс', 'Контроль', 'Финал'] as const;
@@ -33,6 +35,7 @@ function fieldIssue(issues: ReturnType<typeof validateReleaseBriefDraft>, path: 
 export function ReleaseBriefEditor({ draft, onChange }: ReleaseBriefEditorProps) {
   const [activeScene, setActiveScene] = useState(0);
   const [review, setReview] = useState<ReleaseBriefReview>({ claimsReviewed: false, noSensitiveData: false });
+  const [previewReviewed, setPreviewReviewed] = useState(false);
   const [feedback, setFeedback] = useState('Черновик хранится только в этой вкладке после явного сохранения.');
   const issues = useMemo(() => validateReleaseBriefDraft(draft), [draft]);
   const scene = draft.scenes[activeScene] ?? draft.scenes[0];
@@ -45,9 +48,18 @@ export function ReleaseBriefEditor({ draft, onChange }: ReleaseBriefEditorProps)
       return '';
     }
   }, [canExport, draft, review]);
+  const variables = useMemo(() => {
+    if (!canExport) return null;
+    try {
+      return buildReleaseVariables(draft, review);
+    } catch {
+      return null;
+    }
+  }, [canExport, draft, review]);
 
   function updateDraft(next: ReleaseBriefDraft) {
     setReview({ claimsReviewed: false, noSensitiveData: false });
+    setPreviewReviewed(false);
     setFeedback('Текст изменён — подтвердите проверки заново.');
     onChange(next);
   }
@@ -242,6 +254,7 @@ export function ReleaseBriefEditor({ draft, onChange }: ReleaseBriefEditorProps)
           <p className="studio-eyebrow">ПРОВЕРКА ПЕРЕД ЭКСПОРТОМ</p>
           <label><input type="checkbox" checked={review.claimsReviewed} onChange={(event) => setReview({ ...review, claimsReviewed: event.target.checked })} /> <span>Факты и обещания сверены с реальным продуктом</span></label>
           <label><input type="checkbox" checked={review.noSensitiveData} onChange={(event) => setReview({ ...review, noSensitiveData: event.target.checked })} /> <span>В тексте нет секретов, ключей и персональных данных</span></label>
+          <label><input type="checkbox" checked={previewReviewed} onChange={(event) => setPreviewReviewed(event.target.checked)} /> <span>Макет всех пяти сцен просмотрен в выбранном формате</span></label>
         </div>
         <button className="release-brief__export" type="button" disabled={!canExport} onClick={exportVariables}>
           <DownloadIcon />
@@ -254,6 +267,7 @@ export function ReleaseBriefEditor({ draft, onChange }: ReleaseBriefEditorProps)
         <summary>{canExport ? 'Проверить JSON перед скачиванием' : 'JSON появится после двух подтверждений'}</summary>
         {variablesPreview && <pre>{variablesPreview}</pre>}
       </details>
+      <RenderQueuePanel variables={variables} previewReviewed={previewReviewed} />
     </section>
   );
 }

@@ -4,13 +4,15 @@
   <body>
     <template>
       <style>
+        @font-face { font-family: 'Eclipse Inter'; src: url('vendor/inter-cyrillic.woff2') format('woff2'); font-style: normal; font-weight: 100 900; font-display: block; }
         #root { --void: #030405; --ink: #f4f7fb; --signal: #6ba3ff; --signal-soft: #9dc4ff; --solar: #f5a623; }
         * { box-sizing: border-box; }
-        #root { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(circle at 76% 32%, rgba(107, 163, 255, .12), transparent 31%), var(--void); box-shadow: inset 0 0 150px rgba(0, 0, 0, .9); color: var(--ink); font-family: 'Roboto', sans-serif; }
+        #root { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(circle at 76% 32%, rgba(107, 163, 255, .12), transparent 31%), var(--void); box-shadow: inset 0 0 150px rgba(0, 0, 0, .9); color: var(--ink); font-family: 'Eclipse Inter', sans-serif; }
         #root::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(107, 163, 255, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(107, 163, 255, .035) 1px, transparent 1px); background-size: 64px 64px; opacity: .6; }
         .scene-content { position: absolute; inset: 0; display: grid; align-content: center; padding: 7vw; text-align: center; place-items: center; }
         .eyebrow { margin: 0; color: var(--signal-soft); font: 600 19px/1.2 Consolas, monospace; letter-spacing: .24em; text-transform: uppercase; }
         h2 { max-width: 1400px; margin: 25px 0 0; font-size: clamp(84px, 8vw, 154px); line-height: .95; letter-spacing: -.045em; }
+        .body { max-width: 980px; margin: 28px 0 0; color: #8290a3; font-size: 25px; line-height: 1.42; }
         .accent { color: var(--signal-soft); }
         .closing-line { width: 360px; height: 2px; margin-top: 50px; background: linear-gradient(90deg, transparent, var(--signal), var(--solar), transparent); box-shadow: 0 0 25px rgba(107, 163, 255, .5); }
         @media (max-aspect-ratio: 1 / 1) {
@@ -21,8 +23,9 @@
 
       <div id="root" data-composition-id="scene-close" data-width="1920" data-height="1080" data-duration="3">
         <div class="scene-content">
-          <p class="eyebrow">Eclipse Media</p>
-          <h2>Render. Review. <span class="accent">Ship.</span></h2>
+          <p class="eyebrow"><!--release:eyebrow:start-->Eclipse Media<!--release:eyebrow:end--></p>
+          <h2><!--release:headline:start-->Собрать. Проверить. Выпустить.<!--release:headline:end--></h2>
+          <p class="body"><!--release:body:start-->Рендер и публикация запускаются только после отдельного подтверждения.<!--release:body:end--></p>
           <div class="closing-line" aria-hidden="true"></div>
         </div>
       </div>
@@ -33,6 +36,7 @@
           const tl = gsap.timeline({ paused: true });
           tl.fromTo(`${root} .eyebrow`, { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: .45, ease: 'power3.out' }, .18);
           tl.fromTo(`${root} h2`, { autoAlpha: 0, scale: .94 }, { autoAlpha: 1, scale: 1, duration: .8, ease: 'expo.out' }, .32);
+          tl.fromTo(`${root} .body`, { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: .5, ease: 'power3.out' }, .58);
           tl.fromTo(`${root} .closing-line`, { autoAlpha: 0, scaleX: 0 }, { autoAlpha: 1, scaleX: 1, duration: .8, ease: 'power3.out' }, .76);
           tl.to(`${root} h2`, { scale: 1.025, duration: 1.49, ease: 'sine.inOut' }, 1.13);
           tl.to(root, { autoAlpha: 0, duration: .35, ease: 'power2.in' }, 2.62);

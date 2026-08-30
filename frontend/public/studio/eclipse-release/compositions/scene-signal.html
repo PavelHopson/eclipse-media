@@ -4,9 +4,10 @@
   <body>
     <template>
       <style>
+        @font-face { font-family: 'Eclipse Inter'; src: url('vendor/inter-cyrillic.woff2') format('woff2'); font-style: normal; font-weight: 100 900; font-display: block; }
         #root { --void: #030405; --ink: #f4f7fb; --muted: #8290a3; --signal: #6ba3ff; --signal-soft: #9dc4ff; --solar: #f5a623; }
         * { box-sizing: border-box; }
-        #root { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(circle at 76% 32%, rgba(107, 163, 255, .12), transparent 31%), var(--void); box-shadow: inset 0 0 150px rgba(0, 0, 0, .9); color: var(--ink); font-family: 'Roboto', sans-serif; }
+        #root { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(circle at 76% 32%, rgba(107, 163, 255, .12), transparent 31%), var(--void); box-shadow: inset 0 0 150px rgba(0, 0, 0, .9); color: var(--ink); font-family: 'Eclipse Inter', sans-serif; }
         #root::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(107, 163, 255, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(107, 163, 255, .035) 1px, transparent 1px); background-size: 64px 64px; opacity: .6; }
         .scene-content { position: absolute; inset: 0; display: grid; align-content: center; padding: 7vw; }
         .hero-copy { max-width: 60vw; }
@@ -28,9 +29,9 @@
       <div id="root" data-composition-id="scene-signal" data-width="1920" data-height="1080" data-duration="3">
         <div class="scene-content">
           <div class="hero-copy">
-            <p class="eyebrow">Eclipse Forge / Release Signal</p>
-            <h1>Изменения должны быть <span class="accent">видны.</span></h1>
-            <p class="body">Не очередной changelog. Короткий сигнал о том, что команда уже может использовать.</p>
+            <p class="eyebrow"><!--release:eyebrow:start-->Eclipse Forge / Release Signal<!--release:eyebrow:end--></p>
+            <h1><!--release:headline:start-->Изменения должны быть видны.<!--release:headline:end--></h1>
+            <p class="body"><!--release:body:start-->Не очередной changelog. Короткий сигнал о том, что команда уже может использовать.<!--release:body:end--></p>
           </div>
           <div class="orbit" aria-hidden="true"></div>
         </div>

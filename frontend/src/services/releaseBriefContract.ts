@@ -143,6 +143,9 @@ function validateText(
   if (looksSensitive(value)) {
     issues.push({ path, message: `${label}: строка похожа на секрет или ключ доступа.` });
   }
+  if (/(?:https?:\/\/|www\.)/i.test(value)) {
+    issues.push({ path, message: `${label}: ссылки в тексте релизного ролика запрещены.` });
+  }
   const normalized = normalizeText(value);
   if (!normalized) issues.push({ path, message: `${label}: заполните поле.` });
   if (normalized.length > max) issues.push({ path, message: `${label}: максимум ${max} символов.` });

@@ -70,6 +70,13 @@ test('blocks obvious credentials before they can enter variables', () => {
   assert.throws(() => buildReleaseVariables(draft, approvedReview), /похожа на секрет/i);
 });
 
+test('blocks URLs from reaching the fixed local render composition', () => {
+  const draft = createDefaultReleaseBrief();
+  draft.scenes[0].body = 'Откройте https://example.com/internal';
+  assert.match(validateReleaseBriefDraft(draft)[0].message, /ссылки.+запрещены/i);
+  assert.throws(() => buildReleaseVariables(draft, approvedReview), /ссылки.+запрещены/i);
+});
+
 test('maps a validated storyboard into the fixed five-scene release template', () => {
   const storyboard = parseStoryboardJson(JSON.stringify({
     schemaVersion: 'eclipse.release-storyboard.v1',
