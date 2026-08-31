@@ -205,6 +205,7 @@ class DownloadRequest(BaseModel):
     url: str
     format: str = "video"        # "video" | "audio"
     format_id: str | None = None
+    format_height: int | None = None
     title: str = ""
     audio_format: str = "mp3"    # "mp3" | "flac" | "opus" | "m4a" | "wav"
     audio_quality: str = "best"  # "best" | "320" | "192" | "128"
@@ -602,12 +603,12 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
         return "VK изменил API списка видео. Откройте конкретный ролик и вставьте его прямую ссылку."
     if "requested format is not available" in output:
         return "Выбранное качество больше недоступно. Обновите данные ролика и выберите другое качество."
-    if "http error 403" in output or "forbidden" in output:
-        return "Источник отклонил загрузку (HTTP 403). Обновите данные и попробуйте другое качество."
-    if "http error 404" in output or "not found" in output:
-        return "Видео не найдено. Проверьте, что это прямая публичная ссылка на существующий ролик."
     if any(marker in output for marker in ("sign in", "log in", "login required", "cookies")):
         return "Ролик требует авторизацию. Безопасный режим без cookies аккаунта его не скачает."
+    if "http error 403" in output or "forbidden" in output:
+        return "Источник отклонил основной и совместимый потоки (HTTP 403). Попробуйте меньшее качество или другой публичный источник."
+    if "http error 404" in output or "not found" in output:
+        return "Видео не найдено. Проверьте, что это прямая публичная ссылка на существующий ролик."
     if "unsupported url" in output:
         return "Эта ссылка пока не поддерживается. Используйте прямую публичную ссылку на ролик."
     if any(marker in output for marker in ("unable to download webpage", "network is unreachable", "timed out")):
@@ -615,6 +616,16 @@ def format_ytdlp_error(output_lines: list[str]) -> str:
     if "ffmpeg" in output and any(marker in output for marker in ("not found", "not installed")):
         return "FFmpeg не найден. Установите FFmpeg и перезапустите Eclipse Media."
     return "Не удалось прочитать источник после повторной проверки. Убедитесь, что открывается сам публичный ролик, и попробуйте ещё раз."
+
+
+def is_recoverable_stream_rejection(output_lines: list[str]) -> bool:
+    """Retry one anonymous media-stream rejection, never an authentication failure."""
+    output = "\n".join(output_lines).lower()
+    auth_markers = ("login required", "sign in", "log in", "cookies", "private video")
+    return (
+        ("http error 403" in output or "forbidden" in output)
+        and not any(marker in output for marker in auth_markers)
+    )
 
 
 def is_retryable_ytdlp_error(output_lines: list[str]) -> bool:
@@ -998,6 +1009,8 @@ def start_download(req: DownloadRequest):
         raise HTTPException(400, "Неизвестный формат загрузки")
     if req.format_id and not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", req.format_id):
         raise HTTPException(400, "Некорректный ID формата")
+    if req.format_height is not None and not 120 <= req.format_height <= 8640:
+        raise HTTPException(400, "Некорректное разрешение видео")
     if req.audio_format not in AUDIO_FORMAT_EXT or req.audio_quality not in {"best", "320", "192", "128"}:
         raise HTTPException(400, "Некорректные настройки аудио")
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,20}", req.subtitle_lang):
@@ -1036,7 +1049,7 @@ def start_download(req: DownloadRequest):
         target=_run_download,
         args=(job_id, url, req.format, req.format_id, req.title,
               req.audio_format, req.audio_quality, proxy, req.preset,
-              req.subtitle_mode, req.subtitle_lang),
+              req.subtitle_mode, req.subtitle_lang, req.format_height),
         daemon=True,
     )
     thread.start()
@@ -1073,6 +1086,8 @@ def _build_download_command(
     preset: str,
     subtitle_mode: str,
     subtitle_lang: str,
+    format_height: int | None = None,
+    compatible_stream: bool = False,
 ) -> list[str]:
     """Build an allowlisted yt-dlp command without accepting raw CLI arguments."""
     cmd = _ytdlp_base(proxy) + [
@@ -1087,6 +1102,18 @@ def _build_download_command(
         safe_fmt = audio_fmt if audio_fmt in AUDIO_FORMAT_EXT else "mp3"
         cmd += ["-x", "--audio-format", safe_fmt]
         cmd += _build_audio_quality_flags(safe_fmt, audio_quality)
+    elif compatible_stream:
+        # A source may expose metadata and then reject one short-lived progressive URL.
+        # Retry once with an extractor-selected HLS stream at or below the chosen
+        # resolution. The client cannot provide raw selectors, commands or cookies.
+        max_height = min(max(format_height or 2160, 120), 8640)
+        selector = "/".join((
+            f"best[height<={max_height}][protocol^=m3u8]",
+            f"bestvideo[height<={max_height}][protocol^=m3u8]+bestaudio",
+            f"best[height<={max_height}]",
+            f"bestvideo[height<={max_height}]+bestaudio",
+        ))
+        cmd += ["-f", selector, "--merge-output-format", "mp4"]
     elif format_id:
         # Some VK formats already contain audio, while YouTube commonly exposes separate tracks.
         # Keep the selected quality, but fail over to that combined stream before a generic best.
@@ -1108,80 +1135,115 @@ def _build_download_command(
 def _run_download(job_id: str, url: str, fmt: str, format_id: str | None, title: str,
                   audio_fmt: str = "mp3", audio_quality: str = "best",
                   proxy: str | None = None, preset: str = "standard",
-                  subtitle_mode: str = "none", subtitle_lang: str = "en"):
+                  subtitle_mode: str = "none", subtitle_lang: str = "en",
+                  format_height: int | None = None):
     with jobs_lock:
         job = jobs.get(job_id)
     if not job:
         return
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = _build_download_command(
-        url, out_template, fmt, format_id, audio_fmt, audio_quality,
-        proxy, preset, subtitle_mode, subtitle_lang,
-    )
-
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
+    extracted_title: str | None = None
+    for attempt in range(2):
         with jobs_lock:
             if jobs.get(job_id) is not job:
-                proc.kill()
                 return
-            job["process"] = proc
 
-        diagnostic_lines: list[str] = []
-        extracted_title: str | None = None
-        for line in proc.stdout:  # type: ignore[union-attr]
-            diagnostic_lines.append(line.strip())
-            if len(diagnostic_lines) > 40:
-                diagnostic_lines.pop(0)
-            parsed_title = parse_ytdlp_title_line(line)
-            if parsed_title:
-                extracted_title = parsed_title
-                job["phase"] = "finalizing"
-            parsed_phase = parse_ytdlp_phase_line(line)
-            if parsed_phase:
-                job["phase"] = parsed_phase
-                if parsed_phase in {"processing", "finalizing"}:
-                    job["progress"] = 100.0
-                    job["speed"] = ""
-                    job["eta"] = ""
-            parsed = parse_progress_line(line)
-            if parsed:
-                job["phase"] = "downloading"
-                is_fragment_completion = (
-                    parsed.get("percent") == 100.0
-                    and job.get("fragment_total")
-                    and not parsed.get("fragment_total")
-                )
-                if not is_fragment_completion:
-                    job["progress"] = parsed.get("percent", job["progress"])
-                job["speed"] = parsed.get("speed", "")
-                job["eta"] = parsed.get("eta", "")
-                job["fragment_current"] = parsed.get("fragment_current", job.get("fragment_current"))
-                job["fragment_total"] = parsed.get("fragment_total", job.get("fragment_total"))
+        compatible_stream = attempt == 1
+        cmd = _build_download_command(
+            url, out_template, fmt, format_id, audio_fmt, audio_quality,
+            proxy, preset, subtitle_mode, subtitle_lang,
+            format_height=format_height,
+            compatible_stream=compatible_stream,
+        )
 
-        proc.wait(timeout=300)
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            with jobs_lock:
+                if jobs.get(job_id) is not job:
+                    proc.kill()
+                    return
+                job["process"] = proc
 
-        if proc.returncode != 0:
+            diagnostic_lines: list[str] = []
+            for line in proc.stdout:  # type: ignore[union-attr]
+                diagnostic_lines.append(line.strip())
+                if len(diagnostic_lines) > 40:
+                    diagnostic_lines.pop(0)
+                parsed_title = parse_ytdlp_title_line(line)
+                if parsed_title:
+                    extracted_title = parsed_title
+                    job["phase"] = "finalizing"
+                parsed_phase = parse_ytdlp_phase_line(line)
+                if parsed_phase:
+                    job["phase"] = parsed_phase
+                    if parsed_phase in {"processing", "finalizing"}:
+                        job["progress"] = 100.0
+                        job["speed"] = ""
+                        job["eta"] = ""
+                parsed = parse_progress_line(line)
+                if parsed:
+                    job["phase"] = "downloading"
+                    is_fragment_completion = (
+                        parsed.get("percent") == 100.0
+                        and job.get("fragment_total")
+                        and not parsed.get("fragment_total")
+                    )
+                    if not is_fragment_completion:
+                        job["progress"] = parsed.get("percent", job["progress"])
+                    job["speed"] = parsed.get("speed", "")
+                    job["eta"] = parsed.get("eta", "")
+                    job["fragment_current"] = parsed.get("fragment_current", job.get("fragment_current"))
+                    job["fragment_total"] = parsed.get("fragment_total", job.get("fragment_total"))
+
+            proc.wait(timeout=300)
+
+            if proc.returncode == 0:
+                break
+
+            can_recover = (
+                attempt == 0
+                and fmt == "video"
+                and is_recoverable_stream_rejection(diagnostic_lines)
+            )
+            if not can_recover:
+                job["status"] = "error"
+                job["error"] = format_ytdlp_error(diagnostic_lines)
+                return
+
+            # The id is generated internally. Cleanup remains bounded to that
+            # prefix inside DOWNLOAD_DIR before one automatic retry.
+            for partial in glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*")):
+                try:
+                    if os.path.isfile(partial):
+                        os.remove(partial)
+                except OSError:
+                    pass
+            with jobs_lock:
+                if jobs.get(job_id) is not job:
+                    return
+                job["phase"] = "preparing"
+                job["progress"] = 0.0
+                job["speed"] = ""
+                job["eta"] = ""
+                job["fragment_current"] = None
+                job["fragment_total"] = None
+
+        except subprocess.TimeoutExpired:
+            proc.kill()
             job["status"] = "error"
-            job["error"] = format_ytdlp_error(diagnostic_lines)
+            job["error"] = "Превышено время загрузки (5 мин)"
             return
-
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        job["status"] = "error"
-        job["error"] = "Превышено время загрузки (5 мин)"
-        return
-    except Exception:
-        job["status"] = "error"
-        job["error"] = "Не удалось запустить обработку медиа"
-        return
+        except Exception:
+            job["status"] = "error"
+            job["error"] = "Не удалось запустить обработку медиа"
+            return
 
     files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
     if not files:

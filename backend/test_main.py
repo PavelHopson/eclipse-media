@@ -20,6 +20,7 @@ from main import (
     format_ytdlp_error,
     get_info,
     get_transcript,
+    is_recoverable_stream_rejection,
     jobs,
     local_edit_capability,
     local_edit_sources,
@@ -243,12 +244,82 @@ class MediaUrlValidationTests(unittest.TestCase):
         secret_url = "https://media.example/video?token=do-not-expose"
         self.assertEqual(
             format_ytdlp_error([f"ERROR: HTTP Error 403: Forbidden {secret_url}"]),
-            "Источник отклонил загрузку (HTTP 403). Обновите данные и попробуйте другое качество.",
+            "Источник отклонил основной и совместимый потоки (HTTP 403). Попробуйте меньшее качество или другой публичный источник.",
         )
         self.assertNotIn("token", format_ytdlp_error([f"ERROR: unknown {secret_url}"]))
         self.assertIn("прямую ссылку", format_ytdlp_error(["Unable to extract cursor data"]))
         self.assertIn("не найдено", format_ytdlp_error([f"HTTP Error 404: Not Found {secret_url}"]))
         self.assertIn("TLS-сертификат", format_ytdlp_error(["CERTIFICATE_VERIFY_FAILED"]))
+
+    def test_compatible_stream_recovery_is_bounded_and_prefers_hls(self):
+        command = _build_download_command(
+            "https://example.com/video", "downloads/job.%(ext)s", "video", "vk-720",
+            "mp3", "best", None, "standard", "none", "en",
+            format_height=720,
+            compatible_stream=True,
+        )
+
+        selector = command[command.index("-f") + 1]
+        self.assertTrue(selector.startswith("best[height<=720][protocol^=m3u8]"))
+        self.assertIn("bestvideo[height<=720]+bestaudio", selector)
+        self.assertNotIn("vk-720", selector)
+        self.assertNotIn("--cookies", command)
+        self.assertNotIn("--username", command)
+        self.assertEqual(command[-1], "https://example.com/video")
+
+    def test_stream_recovery_never_retries_authentication_failures(self):
+        self.assertTrue(is_recoverable_stream_rejection(["ERROR: HTTP Error 403: Forbidden"]))
+        self.assertFalse(is_recoverable_stream_rejection([
+            "ERROR: HTTP Error 403: Forbidden; login required; pass cookies",
+        ]))
+        self.assertFalse(is_recoverable_stream_rejection(["ERROR: HTTP Error 404: Not Found"]))
+
+    @patch("main.subprocess.Popen")
+    def test_download_retries_one_403_with_bounded_compatible_stream(self, popen):
+        job_id = "b" * 32
+        first = MagicMock()
+        first.stdout = iter(["ERROR: HTTP Error 403: Forbidden\n"])
+        first.returncode = 1
+
+        second = MagicMock()
+        second.returncode = 0
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch("main.DOWNLOAD_DIR", temp_dir):
+            def recovered_output():
+                Path(temp_dir, f"{job_id}.mp4").write_bytes(b"recovered")
+                yield "__ECLIPSE_MEDIA_PHASE__:downloading\n"
+                yield "[download] 100.0% of 1.00MiB at 1.00MiB/s ETA 00:00\n"
+                yield '__ECLIPSE_MEDIA_TITLE__:"Восстановленный ролик"\n'
+
+            second.stdout = recovered_output()
+            popen.side_effect = [first, second]
+            jobs[job_id] = {
+                "status": "downloading",
+                "phase": "preparing",
+                "progress": 0.0,
+                "speed": "",
+                "eta": "",
+                "fragment_current": None,
+                "fragment_total": None,
+                "file": None,
+                "filename": None,
+                "error": None,
+                "process": None,
+            }
+
+            _run_download(
+                job_id, "https://example.com/video", "video", "vk-720", "",
+                format_height=720,
+            )
+
+            self.assertEqual(popen.call_count, 2)
+            recovery_command = popen.call_args_list[1].args[0]
+            recovery_selector = recovery_command[recovery_command.index("-f") + 1]
+            self.assertIn("height<=720", recovery_selector)
+            self.assertIn("protocol^=m3u8", recovery_selector)
+            self.assertEqual(jobs[job_id]["status"], "done")
+            self.assertEqual(jobs[job_id]["filename"], "Восстановленный ролик.mp4")
+            jobs.pop(job_id, None)
 
     @patch("main.time.sleep")
     @patch("main.subprocess.run")

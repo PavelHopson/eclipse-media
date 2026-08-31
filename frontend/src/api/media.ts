@@ -86,6 +86,7 @@ export async function startDownload(params: {
   url: string;
   format: 'video' | 'audio';
   format_id?: string;
+  format_height?: number;
   audio_format?: string;
   audio_quality?: string;
   proxy?: string;
