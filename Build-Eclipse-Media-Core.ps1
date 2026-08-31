@@ -21,6 +21,9 @@ $binaryDir = Join-Path $repoRoot 'frontend\src-tauri\binaries'
 $targetBinary = Join-Path $binaryDir "eclipse-media-core-$target.exe"
 
 New-Item -ItemType Directory -Force -Path $distDir, $workDir, $specDir, $binaryDir | Out-Null
+& $python -m pip install --disable-pip-version-check --no-input -r (Join-Path $backendDir 'requirements.txt')
+if ($LASTEXITCODE -ne 0) { throw 'Media Core runtime dependency installation failed.' }
+
 & $python -m pip install --disable-pip-version-check --no-input -r (Join-Path $backendDir 'requirements-desktop.txt')
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller dependency installation failed.' }
 
@@ -31,6 +34,7 @@ if ($LASTEXITCODE -ne 0) { throw 'PyInstaller dependency installation failed.' }
     --name 'eclipse-media-core' `
     --paths $backendDir `
     --collect-all yt_dlp `
+    --collect-all yt_dlp_ejs `
     --collect-all certifi `
     --distpath $distDir `
     --workpath $workDir `

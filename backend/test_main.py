@@ -127,6 +127,12 @@ class MediaUrlValidationTests(unittest.TestCase):
         self.assertEqual(command[:3], [sys.executable, "-m", "yt_dlp"])
         self.assertNotIn("--remote-components", command)
 
+    def test_youtube_runtime_is_pinned_with_local_ejs(self):
+        requirements = Path(__file__).with_name("requirements.txt").read_text(encoding="utf-8")
+
+        self.assertIn("yt-dlp[default]==2026.8.19", requirements)
+        self.assertIn("yt-dlp-ejs==0.8.0", requirements)
+
     @patch.object(sys, "frozen", True, create=True)
     def test_packaged_sidecar_routes_ytdlp_through_its_explicit_entry_point(self):
         command = _ytdlp_base()

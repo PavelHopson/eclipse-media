@@ -23,7 +23,7 @@
 
 - [x] Добавить Media Intake: четыре понятных результата, project context, заметки и локальную очередь.
 - [x] Добавить rights gate, public URL/proxy validation, максимум три активные задачи и process cancellation.
-- [x] Закрепить `yt-dlp==2026.7.4`; remote EJS components сделать opt-in, а CI actions — SHA-pinned.
+- [x] Закрепить `yt-dlp[default]==2026.8.19` и локальный `yt-dlp-ejs==0.8.0`; remote EJS components сделать opt-in, а CI actions — SHA-pinned.
 - [x] Добавить HyperFrames-ready release-video workspace с browser preview и offline contract check.
 - [x] Вынести видео-студию в отдельный понятный режим web UI и адаптировать desktop/mobile layout.
 - [x] Добавить CDN-free fallback, чтобы preview не превращался в чёрный экран при сетевом сбое.
@@ -68,6 +68,15 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-08-31 - YouTube range recovery (v1.5.2)
+
+- Исправлен воспроизводимый обрыв YouTube: прежний extractor получал HTTP 403 после первых ~10 МБ
+  полного DASH-потока, хотя короткая проверка и метаданные проходили.
+- Runtime обновлён до exact `yt-dlp[default]==2026.8.19` и локального `yt-dlp-ejs==0.8.0`;
+  challenge solver включается из установочного пакета, без загрузки исполняемого кода во время работы.
+- Desktop build теперь сам устанавливает закреплённые runtime-зависимости и явно включает EJS в
+  PyInstaller sidecar. Полный 1080p+audio smoke завершился скачиванием и объединением MP4.
+
 ### 2026-08-31 - rejected stream recovery (v1.5.1)
 
 - Если публичный видеопоток отвечает HTTP 403 после успешной проверки ссылки, Media один раз
