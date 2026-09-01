@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { URL } from 'node:url';
 import { parseDesktopUpdateInfo } from '../src/api/desktopRuntime.ts';
 
 test('accepts a bounded semantic desktop update version', () => {
