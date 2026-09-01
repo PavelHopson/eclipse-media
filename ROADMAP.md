@@ -68,6 +68,14 @@
 - [x] Добавить dry-run MiniMax Music 3 benchmark с pinned revision, rights/license/biometric gates и loopback-only runner.
 
 ## Changelog
+### 2026-09-01 - signed desktop updates (v1.6.0)
+
+- Desktop автоматически проверяет GitHub Releases и показывает один понятный CTA для установки.
+- Update-артефакты подписываются отдельным Ed25519-ключом; приватная часть доступна только
+  release workflow в GitHub Environment `production`.
+- Версия перед установкой повторно проверяется, параллельный запуск блокируется, а Media Core
+  корректно останавливается перед passive NSIS-обновлением.
+
 ### 2026-08-31 - YouTube range recovery (v1.5.2)
 
 - Исправлен воспроизводимый обрыв YouTube: прежний extractor получал HTTP 403 после первых ~10 МБ

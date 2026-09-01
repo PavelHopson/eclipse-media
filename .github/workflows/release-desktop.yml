@@ -1,0 +1,81 @@
+name: Release desktop
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eclipse-media-desktop-release
+  cancel-in-progress: false
+
+jobs:
+  release-windows:
+    if: github.ref == 'refs/heads/master'
+    environment: production
+    runs-on: windows-latest
+    steps:
+      - name: Checkout approved revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Prepare pinned dependencies
+        shell: pwsh
+        run: |
+          python -m venv backend/.venv
+          & backend/.venv/Scripts/python.exe -m pip install --disable-pip-version-check --no-input -r backend/requirements.txt
+          npm.cmd --prefix frontend ci
+
+      - name: Verify frontend
+        shell: pwsh
+        run: |
+          npm.cmd --prefix frontend run lint
+          npm.cmd --prefix frontend test
+          npm.cmd --prefix frontend run typecheck
+
+      - name: Verify backend
+        shell: pwsh
+        run: '& backend/.venv/Scripts/python.exe -m unittest discover -s backend -p "test*.py" -v'
+
+      - name: Build desktop sidecar
+        shell: pwsh
+        run: ./Build-Eclipse-Media-Core.ps1
+
+      - name: Generate installer branding
+        shell: pwsh
+        run: |
+          & frontend/src-tauri/installer/Generate-Branding.ps1
+          node frontend/node_modules/@tauri-apps/cli/tauri.js icon frontend/src-tauri/icon-master.svg --output frontend/src-tauri/icons
+
+      - name: Build signed updater release
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: frontend
+          tauriScript: npm run desktop
+          args: --config src-tauri/tauri.release.conf.json --bundles nsis
+          tagName: media-v__VERSION__
+          releaseName: Eclipse Media v__VERSION__
+          releaseBody: Подписанное обновление Eclipse Media. Установка выполняется для текущего пользователя.
+          releaseDraft: false
+          prerelease: false
+          releaseCommitish: master
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
+          uploadUpdaterSignatures: true
+          retryAttempts: 2

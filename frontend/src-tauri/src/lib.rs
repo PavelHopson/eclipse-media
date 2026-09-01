@@ -13,12 +13,14 @@ use std::{
     time::Duration,
 };
 use tauri::{Manager, RunEvent};
+use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 use uuid::Uuid;
 
 const MAX_NATIVE_SAVE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 static QUITTING: AtomicBool = AtomicBool::new(false);
+static INSTALLING_UPDATE: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +33,11 @@ struct DesktopRuntime {
 struct NativeSaveReceipt {
     saved: bool,
     filename: Option<String>,
+}
+
+#[derive(Serialize)]
+struct DesktopUpdateInfo {
+    version: String,
 }
 
 #[derive(Default)]
@@ -362,6 +369,91 @@ fn save_file(
     })
 }
 
+
+fn valid_update_version(value: &str) -> bool {
+    if value.is_empty()
+        || value.len() > 64
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'))
+    {
+        return false;
+    }
+    let core = value.split_once('-').map_or(value, |(version, _)| version);
+    let mut parts = core.split('.');
+    let valid = (0..3).all(|_| {
+        parts
+            .next()
+            .is_some_and(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+    });
+    valid && parts.next().is_none()
+}
+
+#[tauri::command]
+async fn check_desktop_update(app: tauri::AppHandle) -> Result<Option<DesktopUpdateInfo>, String> {
+    let updater = app
+        .updater()
+        .map_err(|_| "Не удалось подготовить проверку обновлений".to_owned())?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|_| "Не удалось проверить обновления".to_owned())?;
+    Ok(update.map(|candidate| DesktopUpdateInfo {
+        version: candidate.version.to_string(),
+    }))
+}
+
+#[tauri::command]
+async fn install_desktop_update(
+    app: tauri::AppHandle,
+    expected_version: String,
+) -> Result<(), String> {
+    if !valid_update_version(&expected_version) {
+        return Err("Некорректная версия обновления".into());
+    }
+    if INSTALLING_UPDATE
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err("Обновление уже устанавливается".into());
+    }
+
+    let result = async {
+        let shutdown_app = app.clone();
+        let updater = app
+            .updater_builder()
+            .on_before_exit(move || {
+                QUITTING.store(true, Ordering::SeqCst);
+                stop_sidecar(&shutdown_app);
+            })
+            .build()
+            .map_err(|_| "Не удалось подготовить установку обновления".to_owned())?;
+        let update = updater
+            .check()
+            .await
+            .map_err(|_| "Не удалось повторно проверить обновление".to_owned())?
+            .ok_or_else(|| "Новая версия больше недоступна".to_owned())?;
+        if update.version.to_string() != expected_version {
+            return Err("Версия обновления изменилась. Повторите проверку.".into());
+        }
+        update
+            .download_and_install(|_, _| {}, || {})
+            .await
+            .map_err(|_| "Не удалось проверить или установить подписанное обновление".to_owned())
+    }
+    .await;
+
+    if result.is_err() {
+        INSTALLING_UPDATE.store(false, Ordering::SeqCst);
+    }
+    result?;
+
+    #[cfg(not(target_os = "windows"))]
+    app.restart();
+
+    Ok(())
+}
+
 #[tauri::command]
 async fn save_completed_file(
     app: tauri::AppHandle,
@@ -383,11 +475,14 @@ async fn save_completed_file(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .manage(DesktopState::default())
         .invoke_handler(tauri::generate_handler![
             desktop_runtime,
+            check_desktop_update,
+            install_desktop_update,
             save_completed_file
         ])
         .on_window_event(|window, event| {
@@ -415,7 +510,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{commit_partial, safe_suggested_name, valid_job_id};
+    use super::{commit_partial, safe_suggested_name, valid_job_id, valid_update_version};
     use std::{env, fs};
     use uuid::Uuid;
 
@@ -424,6 +519,14 @@ mod tests {
         assert!(valid_job_id("0123456789abcdef0123456789abcdef"));
         assert!(!valid_job_id("../downloads/file"));
         assert!(!valid_job_id("g123456789abcdef0123456789abcdef"));
+    }
+
+    #[test]
+    fn validates_expected_update_versions() {
+        assert!(valid_update_version("1.6.1"));
+        assert!(valid_update_version("2.0.0-rc.1"));
+        assert!(!valid_update_version("latest"));
+        assert!(!valid_update_version("1.6.1\\nhttps://evil.invalid"));
     }
 
     #[test]

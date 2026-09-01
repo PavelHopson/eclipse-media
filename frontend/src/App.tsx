@@ -7,6 +7,7 @@ import { ProxySettings } from './components/ProxySettings';
 import { ReleaseStudio } from './components/ReleaseStudio';
 import { MediaIntake } from './components/MediaIntake';
 import { SafeLocalEdit } from './components/SafeLocalEdit';
+import { DesktopUpdater } from './components/DesktopUpdater';
 import { MediaRequest, useDownloads } from './store/downloads';
 import { fetchInfo } from './api/media';
 
@@ -89,7 +90,7 @@ export default function App() {
           </div>
           <div className="relative">
             <span className="font-semibold text-sm tracking-tight text-glow" style={{ color: 'var(--text)' }}>Eclipse Media</span>
-            <span className="text-xs ml-2 mono" style={{ color: 'var(--text-dim)' }}>v1.5.2</span>
+            <span className="text-xs ml-2 mono" style={{ color: 'var(--text-dim)' }}>v1.6.0</span>
           </div>
         </div>
 
@@ -114,6 +115,8 @@ export default function App() {
 
         <div className="header-status"><span className="tag">{headerStatus}</span></div>
       </header>
+
+      <DesktopUpdater />
 
       <main className={workspace === 'downloads' ? 'download-shell' : 'studio-shell'}>
         {workspace === 'studio' && <ReleaseStudio />}
