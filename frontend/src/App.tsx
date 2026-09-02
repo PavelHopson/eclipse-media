@@ -8,14 +8,23 @@ import { ReleaseStudio } from './components/ReleaseStudio';
 import { MediaIntake } from './components/MediaIntake';
 import { SafeLocalEdit } from './components/SafeLocalEdit';
 import { DesktopUpdater } from './components/DesktopUpdater';
+import { BeatScenePlanner } from './components/BeatScenePlanner';
+import { DatasetLab } from './components/DatasetLab';
+import { MediaLibrary } from './components/MediaLibrary';
 import { MediaRequest, useDownloads } from './store/downloads';
 import { fetchInfo } from './api/media';
 
-type Workspace = 'downloads' | 'intake' | 'studio' | 'edit';
+const WORKSPACES = ['downloads', 'library', 'intake', 'beats', 'datasets', 'studio', 'edit'] as const;
+type Workspace = typeof WORKSPACES[number];
+
+function readWorkspace(): Workspace {
+  const requested = new URLSearchParams(window.location.search).get('workspace');
+  return WORKSPACES.find((workspace) => workspace === requested) ?? 'downloads';
+}
 
 export default function App() {
   const [fetching, setFetching] = useState(false);
-  const [workspace, setWorkspace] = useState<Workspace>('downloads');
+  const [workspace, setWorkspace] = useState<Workspace>(readWorkspace);
   const store = useDownloads();
 
   async function fetchItem(id: string, url: string) {
@@ -62,13 +71,27 @@ export default function App() {
     }
   }
 
+  function selectWorkspace(nextWorkspace: Workspace) {
+    setWorkspace(nextWorkspace);
+    const url = new URL(window.location.href);
+    if (nextWorkspace === 'downloads') url.searchParams.delete('workspace');
+    else url.searchParams.set('workspace', nextWorkspace);
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+
   const headerStatus = workspace === 'downloads'
     ? 'До 3 задач'
+    : workspace === 'library'
+      ? 'Права внутри файла'
     : workspace === 'intake'
       ? `${store.requests.filter((request) => request.status !== 'done').length} в плане`
-      : workspace === 'edit'
-        ? 'Только предпросмотр'
-        : 'Local preview';
+      : workspace === 'beats'
+        ? 'Локальный анализ'
+        : workspace === 'datasets'
+          ? 'Без запуска обучения'
+        : workspace === 'edit'
+          ? 'Только предпросмотр'
+          : 'Local preview';
 
   return (
     <div className="min-h-screen eclipse-grid forge-product-shell" data-visual-profile="bento-spatial">
@@ -97,7 +120,10 @@ export default function App() {
         <nav className="workspace-switch" aria-label="Раздел Eclipse Media">
           {([
             ['downloads', 'Загрузки'],
+            ['library', 'Медиатека'],
             ['intake', 'План'],
+            ['beats', 'Бит-карта'],
+            ['datasets', 'Датасеты'],
             ['studio', 'Видео-студия'],
             ['edit', 'Безопасный монтаж'],
           ] as Array<[Workspace, string]>).map(([value, label]) => (
@@ -106,7 +132,7 @@ export default function App() {
               type="button"
               className={workspace === value ? 'workspace-switch__item is-active' : 'workspace-switch__item'}
               aria-pressed={workspace === value}
-              onClick={() => setWorkspace(value)}
+              onClick={() => selectWorkspace(value)}
             >
               {label}
             </button>
@@ -119,7 +145,10 @@ export default function App() {
       <DesktopUpdater />
 
       <main className={workspace === 'downloads' ? 'download-shell' : 'studio-shell'}>
+        {workspace === 'library' && <MediaLibrary />}
         {workspace === 'studio' && <ReleaseStudio />}
+        {workspace === 'beats' && <BeatScenePlanner />}
+        {workspace === 'datasets' && <DatasetLab />}
         {workspace === 'edit' && <SafeLocalEdit />}
         {workspace === 'intake' && <MediaIntake onPrepare={handlePrepare} />}
         {workspace === 'downloads' && (
