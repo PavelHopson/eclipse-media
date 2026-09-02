@@ -81,16 +81,28 @@ export interface MediaLibraryItem {
 
 const SAFE_ID = /^[A-Za-z0-9_-]{1,96}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
-const SAFE_FILE = /^[^\\/:*?"<>|\u0000-\u001f\u007f]{1,180}$/;
+const SAFE_FILE = /^[^\\/:*?"<>|]{1,180}$/;
 const ALLOWED_CHANNELS = new Set<AllowedChannel>(['internal', 'web', 'social', 'client', 'broadcast']);
 const BLOCKED_SOURCE_HOSTS = [
   'kemono.cr',
   'playtorrio.pages.dev',
 ];
+function hasUnsafeCharacters(value: string, blockBidiControls = false): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint <= 0x1f || codePoint === 0x7f) return true;
+    if (blockBidiControls && (
+      (codePoint >= 0x202a && codePoint <= 0x202e)
+      || (codePoint >= 0x2066 && codePoint <= 0x2069)
+    )) return true;
+  }
+  return false;
+}
+
 
 function cleanText(value: string, field: string, min: number, max: number): string {
   const normalized = value.trim().replace(/\s+/g, ' ');
-  if (normalized.length < min || normalized.length > max || /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/.test(normalized)) {
+  if (normalized.length < min || normalized.length > max || hasUnsafeCharacters(normalized, true)) {
     throw new Error(`${field}: нужно от ${min} до ${max} безопасных символов`);
   }
   return normalized;
@@ -135,7 +147,7 @@ export function createMediaLibraryItem(
   id = crypto.randomUUID(),
 ): MediaLibraryItem {
   if (!SAFE_ID.test(id)) throw new Error('ID карточки содержит недопустимые символы');
-  if (!SAFE_FILE.test(input.file.name) || input.file.name === '.' || input.file.name === '..') {
+  if (!SAFE_FILE.test(input.file.name) || hasUnsafeCharacters(input.file.name) || input.file.name === '.' || input.file.name === '..') {
     throw new Error('Имя файла не должно содержать путь или служебные символы');
   }
   if (!Number.isInteger(input.file.sizeBytes) || input.file.sizeBytes <= 0 || input.file.sizeBytes > MAX_LIBRARY_FILE_BYTES) {

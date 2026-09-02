@@ -48,6 +48,17 @@ test('requires evidence for licensed assets and blocks rejected source domains',
   assert.throws(() => createMediaLibraryItem({ ...licensed, rights: { ...licensed.rights, sourceUrl: 'https://kemono.cr/post/1' } }), /запрещён/);
   assert.throws(() => createMediaLibraryItem({ ...licensed, rights: { ...licensed.rights, sourceUrl: 'https://playtorrio.pages.dev/' } }), /запрещён/);
 });
+test('rejects control and bidirectional override characters in local metadata', () => {
+  assert.throws(() => createMediaLibraryItem({
+    ...ownedInput(),
+    file: { ...ownedInput().file, name: 'teaser\u0000.mp4' },
+  }), /служебные символы/);
+  assert.throws(() => createMediaLibraryItem({
+    ...ownedInput(),
+    title: 'Безопасный тизер\u202e4pm.exe',
+  }), /безопасных символов/);
+});
+
 
 test('keeps client scope, training permission and expiry explicit', () => {
   const input = ownedInput();

@@ -42,6 +42,17 @@ test('rejects duplicate files and unpinned base models', () => {
   assert.throws(() => createDatasetManifest(duplicated), /одинаковые/);
   assert.throws(() => createDatasetManifest({ ...input(), baseModel: { ...input().baseModel, sha256: 'bad' } }), /SHA-256/);
 });
+test('rejects control characters in dataset metadata and file names', () => {
+  assert.throws(() => createDatasetManifest({
+    ...input(),
+    files: [{ ...input().files[0], fileName: 'frame\u0000.png' }],
+  }), /служебные символы/);
+  assert.throws(() => createDatasetManifest({
+    ...input(),
+    purpose: 'Подготовить\u0000 обучающий набор из собственных изображений.',
+  }), /символов/);
+});
+
 
 test('gates GPU handoff behind caption review and a pinned base model', () => {
   let manifest = createDatasetManifest(input(), new Date(), 'dataset-2');

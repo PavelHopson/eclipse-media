@@ -65,12 +65,20 @@ export interface DatasetManifest {
 }
 
 const SAFE_ID = /^[A-Za-z0-9_-]{1,96}$/;
-const SAFE_FILE = /^[^\\/:*?"<>|\u0000-\u001f\u007f]{1,180}$/;
+const SAFE_FILE = /^[^\\/:*?"<>|]{1,180}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
+function hasControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint <= 0x1f || codePoint === 0x7f) return true;
+  }
+  return false;
+}
+
 
 function text(value: string, field: string, min: number, max: number): string {
   const normalized = value.trim().replace(/\s+/g, ' ');
-  if (normalized.length < min || normalized.length > max || /[\u0000-\u001f\u007f]/.test(normalized)) {
+  if (normalized.length < min || normalized.length > max || hasControlCharacter(normalized)) {
     throw new Error(`${field}: нужно от ${min} до ${max} символов`);
   }
   return normalized;
@@ -81,7 +89,7 @@ function validateFiles(files: DatasetFileInput[]): DatasetFileInput[] {
   const seen = new Set<string>();
   let total = 0;
   return files.map((file) => {
-    if (!SAFE_FILE.test(file.fileName) || file.fileName === '.' || file.fileName === '..') throw new Error('Имя изображения содержит путь или служебные символы');
+    if (!SAFE_FILE.test(file.fileName) || hasControlCharacter(file.fileName) || file.fileName === '.' || file.fileName === '..') throw new Error('Имя изображения содержит путь или служебные символы');
     if (!file.mimeType.startsWith('image/') || !/\.(png|jpe?g|webp|avif)$/i.test(file.fileName)) throw new Error('Dataset Lab принимает PNG, JPEG, WEBP и AVIF');
     if (!Number.isInteger(file.sizeBytes) || file.sizeBytes <= 0) throw new Error('Размер изображения недопустим');
     total += file.sizeBytes;
