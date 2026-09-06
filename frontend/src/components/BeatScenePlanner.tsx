@@ -12,6 +12,7 @@ import {
   analyzeEnvelope,
 } from '../services/beatMapContract';
 import '../beat-scene.css';
+import { SceneDirectionPlanner } from './SceneDirectionPlanner';
 
 const SHOTS: ShotType[] = ['Общий план', 'Средний план', 'Крупный план', 'Деталь', 'Типографика'];
 const TRANSITIONS: TransitionType[] = ['Склейка', 'По движению', 'Через затемнение', 'Световой импульс'];
@@ -44,6 +45,7 @@ export function BeatScenePlanner() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [project, setProject] = useState<BeatMapProject | null>(null);
+  const [projectRevision, setProjectRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('Выберите собственный аудиофайл или откройте синтетический пример.');
@@ -70,6 +72,7 @@ export function BeatScenePlanner() {
       const envelope = buildEnergyEnvelope(buffer);
       const next = analyzeEnvelope(envelope, buffer.duration, { fileName: file.name, bytes: file.size });
       setProject(next);
+      setProjectRevision((value) => value + 1);
       setStatus(`Готово: ${next.analysis.bpm} BPM, ${next.scenes.length} сцен. Проверьте план перед экспортом.`);
     } catch (caught) {
       setProject(null);
@@ -90,6 +93,7 @@ export function BeatScenePlanner() {
     setError('');
     const next = createSyntheticBeatMap();
     setProject(next);
+    setProjectRevision((value) => value + 1);
     setStatus('Синтетический пример готов. Это тестовый ритм 120 BPM без чужого аудио.');
   }
 
@@ -218,6 +222,7 @@ export function BeatScenePlanner() {
               ))}
             </div>
           </section>
+          <SceneDirectionPlanner key={projectRevision} project={project} />
         </div>
       )}
     </section>

@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { MediaIntent, MediaRequest, useDownloads } from '../store/downloads';
+import { TranscriptResearch } from './TranscriptResearch';
 
 interface Props {
   onPrepare: (request: MediaRequest) => Promise<void>;
@@ -43,6 +44,7 @@ function requestLabel(request: MediaRequest): string {
 
 export function MediaIntake({ onPrepare }: Props) {
   const store = useDownloads();
+  const [mode, setMode] = useState<'links' | 'research'>('links');
   const [url, setUrl] = useState('');
   const [intent, setIntent] = useState<MediaIntent>('watch');
   const [project, setProject] = useState(PROJECTS[0]);
@@ -106,10 +108,10 @@ export function MediaIntake({ onPrepare }: Props) {
       <div className="intake-hero">
         <div>
           <p className="studio-eyebrow">MEDIA INTAKE · LOCAL FIRST</p>
-          <h1 id="intake-title">Ссылка превращается в понятную задачу</h1>
-          <p>Сначала выберите результат. Eclipse Media сохранит контекст и покажет ровно одно следующее действие.</p>
+          <h1 id="intake-title">{mode === 'links' ? 'Ссылка превращается в понятную задачу' : 'Видео в тезисах и таймкодах'}</h1>
+          <p>{mode === 'links' ? 'Сначала выберите результат. Eclipse Media сохранит контекст и покажет ровно одно следующее действие.' : 'Откройте субтитры и соберите проверяемый разбор без подключения внешнего AI.'}</p>
         </div>
-        <div className="intake-summary" aria-label="Сводка очереди">
+        <div className="intake-summary" aria-label="Сводка очереди" hidden={mode !== 'links'}>
           <strong>{activeRequests.length}</strong>
           <span>в работе</span>
           <strong>{completedRequests}</strong>
@@ -117,7 +119,12 @@ export function MediaIntake({ onPrepare }: Props) {
         </div>
       </div>
 
-      <div className="intake-layout">
+      <nav className="planning-mode" aria-label="Режим планирования">
+        <button type="button" aria-pressed={mode === 'links'} onClick={() => setMode('links')}>План ссылок</button>
+        <button type="button" aria-pressed={mode === 'research'} onClick={() => setMode('research')}>Разобрать субтитры</button>
+      </nav>
+      <div hidden={mode !== 'research'}><TranscriptResearch /></div>
+      <div className="intake-layout" hidden={mode !== 'links'}>
         <form className="intake-form" onSubmit={handleSubmit} noValidate>
           <div className="intake-section-heading">
             <span>01</span>
