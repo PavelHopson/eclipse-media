@@ -19,7 +19,7 @@ export function DraftStatus<T>({ controller, snapshot, busy = false, onClear }: 
           if (next || window.confirm('Отключить автосохранение и удалить сохранённые данные этого раздела? Текущая форма останется открыта.')) controller.setEnabled(next);
         }} />Сохранять на этом устройстве</label>
         <button type="button" disabled={locked || (!ready && phase !== 'invalid')} onClick={() => {
-          if (window.confirm('Удалить черновик этого раздела и очистить форму? Другие разделы и скачанные файлы останутся.')) { onClear?.(); controller.clear(); }
+          if (window.confirm(controller.kind === 'beats' ? 'Очистить бит-карту, режиссуру и сценарий этого проекта? Разбор субтитров и скачанные файлы останутся.' : 'Удалить черновик разбора и очистить форму? Сценарий и скачанные файлы останутся.')) { onClear?.(); controller.clear(); }
         }}>Удалить черновик</button>
       </div>
     </div>
@@ -29,6 +29,6 @@ export function DraftStatus<T>({ controller, snapshot, busy = false, onClear }: 
     </div>}
     {phase === 'error' && <button type="button" disabled={busy} onClick={() => void controller.retry()}>Повторить сохранение</button>}
     {phase === 'error' && !ready && <button type="button" onClick={controller.continueInMemory}>Продолжить без сохранения</button>}
-    <small>{controller.kind === 'research' ? 'Сохраняются текст субтитров, ссылка и тезисы.' : 'Сохраняются бит-карта, заметки и режиссура. Аудиофайл не сохраняется.'} Данные не отправляются на сервер. Это не резервная копия: очистка данных браузера удалит черновик. На общем компьютере отключите сохранение.</small>
+    <small>{controller.kind === 'research' ? 'Сохраняются текст субтитров, ссылка и тезисы.' : 'Сохраняются бит-карта, режиссура и сценарий. Аудио и видео не сохраняются.'} Данные не отправляются на сервер. Это не резервная копия: очистка данных браузера удалит черновик. На общем компьютере отключите сохранение.</small>
   </aside>;
 }

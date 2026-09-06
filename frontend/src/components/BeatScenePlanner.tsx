@@ -14,7 +14,7 @@ import {
 import '../beat-scene.css';
 import { SceneDirectionPlanner } from './SceneDirectionPlanner';
 import { DraftStatus } from './DraftStatus';
-import { beatDraft, useLocalDraft } from '../hooks/useLocalDraft';
+import { useProjectDrafts, useLocalDraft } from '../hooks/useLocalDraft';
 import { emptyDirectionDraft } from '../services/draftContract';
 
 const SHOTS: ShotType[] = ['Общий план', 'Средний план', 'Крупный план', 'Деталь', 'Типографика'];
@@ -49,6 +49,7 @@ export function BeatScenePlanner() {
   const run = useRef(0);
   useEffect(() => () => { run.current++; }, []);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const { beats: beatDraft } = useProjectDrafts();
   const draft = useLocalDraft(beatDraft);
   const { project } = draft.data;
   const setProject = (update: (project: BeatMapProject | null) => BeatMapProject | null) => beatDraft.update((current) => ({ ...current, project: update(current.project) }));
@@ -82,7 +83,7 @@ export function BeatScenePlanner() {
       if (id !== run.current || generation !== beatDraft.getReplacementVersion()) return;
       const envelope = buildEnergyEnvelope(buffer);
       const next = analyzeEnvelope(envelope, buffer.duration, { fileName: file.name, bytes: file.size });
-      beatDraft.update(() => ({ project: next, direction: emptyDirectionDraft() }));
+      beatDraft.update((current) => ({ ...current, project: next, direction: emptyDirectionDraft() }));
       setStatus(`Готово: ${next.analysis.bpm} BPM, ${next.scenes.length} сцен. Проверьте план перед экспортом.`);
     } catch (caught) {
       if (id !== run.current) return;
@@ -103,7 +104,7 @@ export function BeatScenePlanner() {
     if (!draft.ready) return;
     setError('');
     const next = createSyntheticBeatMap();
-    beatDraft.update(() => ({ project: next, direction: emptyDirectionDraft() }));
+    beatDraft.update((current) => ({ ...current, project: next, direction: emptyDirectionDraft() }));
     setStatus('Синтетический пример готов. Это тестовый ритм 120 BPM без чужого аудио.');
   }
 

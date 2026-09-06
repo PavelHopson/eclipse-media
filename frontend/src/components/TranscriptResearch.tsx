@@ -4,9 +4,10 @@ import {
   MAX_SELECTIONS, parseTranscript, sha256Bytes, validateTranscriptFile, youtubeVideoId,
   type ResearchNote, type ReviewStatus,
 } from '../services/researchContract';
-import { researchDraft, useLocalDraft } from '../hooks/useLocalDraft';
+import { useProjectDrafts, useLocalDraft } from '../hooks/useLocalDraft';
 import { DraftStatus } from './DraftStatus';
 import '../research-direction.css';
+import { addThesisScene } from '../services/projectStoryboardContract';
 
 const EXAMPLE = 'WEBVTT\n\n00:00.000 --> 00:04.000\nВ этом примере мы планируем короткий ролик о мастерской.\n\n00:04.500 --> 00:09.000\nСначала покажем процесс, затем готовый результат.\n\n00:09.000 --> 00:14.000\nСтоимость и сроки нужно проверить у автора проекта.\n';
 const PAGE_SIZE = 40;
@@ -18,6 +19,8 @@ export function TranscriptResearch() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const { research: researchDraft, beats: beatDraft } = useProjectDrafts();
+  const beats = useLocalDraft(beatDraft);
   const draft = useLocalDraft(researchDraft);
   const { videoUrl, loaded, notes, page } = draft.data;
   const setVideoUrl = (videoUrl: string) => researchDraft.update((current) => ({ ...current, videoUrl }));
@@ -156,7 +159,10 @@ export function TranscriptResearch() {
                 </select></label>
                 <label className="planning-field"><span>Источник подтверждения</span><input inputMode="url" maxLength={2048} value={note.evidenceUrl}
                   placeholder="https://..." onChange={(event) => updateNote(note.cueId, { evidenceUrl: event.target.value })} /></label>
-                <button type="button" onClick={() => toggleCue(note.cueId)}>Убрать тезис</button>
+                <div className="planning-toolbar"><button type="button" disabled={!note.claim.trim() || !beats.ready || ['conflict', 'error', 'invalid'].includes(beats.phase)} onClick={() => {
+                  try { beatDraft.update((current) => addThesisScene(current, researchDraft.getSnapshot().data, note.cueId)); setStatus('Сцена создана с тезисом и таймкодами. Откройте раздел «Сценарий».'); setError(''); }
+                  catch (caught) { setError((caught as Error).message); }
+                }}>Создать сцену</button><button type="button" onClick={() => toggleCue(note.cueId)}>Убрать тезис</button></div>
               </article>)}
               {review.error && <p className="planning-error" role="status">{review.error}</p>}
               <div className="planning-toolbar">

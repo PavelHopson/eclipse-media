@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { prepareLocalVideo } from '../services/localVideoPreview';
+import type { StoryScene } from '../services/projectStoryboardContract';
+import '../storyboard.css';
 import {
   approveLocalEdit,
   cancelLocalEdit,
@@ -63,13 +66,17 @@ function formatBytes(bytes: number) {
   return `${Math.max(0.1, bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
 
-export function SafeLocalEdit() {
+export function SafeLocalEdit({ scene, onBack }: { scene?: StoryScene; onBack?: () => void } = {}) {
+  const [sceneDuration] = useState(scene?.duration ?? 30);
+  const sourceRequest = useRef(0); const previewRef = useRef(''); const videoRef = useRef<HTMLVideoElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null); const exporting = useRef(false);
+  const [previewUrl, setPreviewUrl] = useState(''); const [localRights, setLocalRights] = useState(false);
   const [capability, setCapability] = useState<LocalEditCapability | null>(null);
   const [options, setOptions] = useState<LocalEditSourceOption[]>([]);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [source, setSource] = useState<LocalEditSource | null>(null);
-  const [startSeconds, setStartSeconds] = useState(12);
-  const [endSeconds, setEndSeconds] = useState(42);
+  const [startSeconds, setStartSeconds] = useState(scene ? 0 : 12);
+  const [endSeconds, setEndSeconds] = useState(scene?.duration ?? 42);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [run, setRun] = useState<LocalEditRun | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +87,7 @@ export function SafeLocalEdit() {
 
   const desktop = isDesktopApp();
   const effectiveSource = source ?? DEMO_SOURCE;
-  const durationSeconds = Math.max(1, Math.floor(effectiveSource.durationMs / 1_000));
+  const durationSeconds = Math.max(0.001, effectiveSource.durationMs / 1_000);
   const activeExport = run?.state === 'queued' || run?.state === 'running';
   const runId = run?.runId;
   const runState = run?.state;
@@ -98,14 +105,7 @@ export function SafeLocalEdit() {
         const nextOptions = await listLocalEditSources();
         if (!active) return;
         setOptions(nextOptions);
-        if (nextOptions[0]) {
-          setSelectedJobId(nextOptions[0].jobId);
-          const registered = await registerLocalEditSource(nextOptions[0].jobId);
-          if (!active) return;
-          setSource(registered);
-          setStartSeconds(0);
-          setEndSeconds(Math.min(30, Math.max(1, Math.floor(registered.durationMs / 1_000))));
-        }
+        // Registration is an explicit user selection, never a mount-time mutation.
       } catch (caught) {
         if (active) setError(caught instanceof Error ? caught.message : 'Не удалось открыть локальный монтаж');
       } finally {
@@ -115,6 +115,7 @@ export function SafeLocalEdit() {
     void load();
     return () => { active = false; };
   }, []);
+  useEffect(() => () => { sourceRequest.current++; if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);
 
   useEffect(() => {
     if (!runId || !runState || TERMINAL.has(runState)) return;
@@ -158,7 +159,8 @@ export function SafeLocalEdit() {
   } as CSSProperties;
 
   async function chooseSource(jobId: string) {
-    if (activeExport) return;
+    if (activeExport || working || !jobId) return;
+    const request = ++sourceRequest.current;
     setSelectedJobId(jobId);
     setWorking(true);
     setError(null);
@@ -167,27 +169,43 @@ export function SafeLocalEdit() {
     setRightsConfirmed(false);
     try {
       const registered = await registerLocalEditSource(jobId);
+      if (request !== sourceRequest.current) return;
       setSource(registered);
       setStartSeconds(0);
-      setEndSeconds(Math.min(30, Math.max(1, Math.floor(registered.durationMs / 1_000))));
+      setEndSeconds(Math.min(sceneDuration, registered.durationMs / 1_000));
     } catch (caught) {
+      if (request !== sourceRequest.current) return;
       setSource(null);
       setError(caught instanceof Error ? caught.message : 'Не удалось проверить MP4');
     } finally {
-      setWorking(false);
+      if (request === sourceRequest.current) setWorking(false);
     }
+  }
+  async function chooseLocal(file: File) {
+    if (!localRights || working || activeExport || capability?.ready) return;
+    const request = ++sourceRequest.current; setWorking(true); setError(null); setRightsConfirmed(false); setRun(null);
+    try {
+      const prepared = await prepareLocalVideo(file);
+      if (request !== sourceRequest.current) { URL.revokeObjectURL(prepared.url); return; }
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+      previewRef.current = prepared.url; setPreviewUrl(prepared.url); setSource(prepared.source);
+      setStartSeconds(0); setEndSeconds(Math.min(sceneDuration, prepared.source.durationMs / 1000));
+    } catch (caught) { if (request === sourceRequest.current) setError((caught as Error).message); }
+    finally { if (request === sourceRequest.current) setWorking(false); }
   }
 
   function revise(setter: (value: number) => void, value: number) {
-    if (activeExport) return;
+    if (activeExport || working) return;
     setter(value);
     setRun(null);
     setSavedName(null);
     setError(null);
+    setRightsConfirmed(false);
   }
 
   async function exportClip() {
-    if (!planResult.plan || !source || !rightsConfirmed || working || activeExport) return;
+    if (!capability?.ready || previewUrl || !planResult.plan || !source?.jobId || !rightsConfirmed || working || activeExport || exporting.current) return;
+    exporting.current = true;
     setWorking(true);
     setError(null);
     setRun(null);
@@ -200,6 +218,7 @@ export function SafeLocalEdit() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Экспорт не запущен');
     } finally {
+      exporting.current = false;
       setWorking(false);
     }
   }
@@ -235,6 +254,11 @@ export function SafeLocalEdit() {
 
   return (
     <section className="safe-edit" aria-labelledby="safe-edit-title" aria-busy={loading || working}>
+      {scene && <aside className="story-handoff" aria-label="Сцена из сценария"><h2>{scene.title}</h2><p>План: {scene.duration} сек · {scene.music}</p>
+        <p><strong>Действие:</strong> {scene.action}</p><p><strong>Камера:</strong> {scene.camera}</p>
+        {scene.theses.map((t) => <p key={t.sha256 + t.cueId}>Тезис: {t.claim} · {formatEditTime(t.start * 1000)} - {formatEditTime(t.end * 1000)} · {t.fileName}</p>)}
+        <p>Это снимок сцены. Ни музыка, ни камера не применяются автоматически. Выберите видео и проверьте границы; таймкоды субтитров не доказывают соответствие файлу.</p>
+        <button className="btn-ghost" type="button" disabled={working || activeExport} onClick={onBack}>Вернуться к сценарию</button></aside>}
       <header className="safe-edit__hero">
         <div>
           <p className="studio-eyebrow">БЕЗОПАСНЫЙ ЛОКАЛЬНЫЙ МОНТАЖ</p>
@@ -270,7 +294,7 @@ export function SafeLocalEdit() {
               <h2 id="clip-preview-title">{effectiveSource.filename}</h2>
             </div>
             <span className="safe-edit__source-status">
-              {source ? `Проверен · ${formatBytes(source.sizeBytes)}` : 'Демонстрационный предпросмотр'}
+              {source ? `${previewUrl ? 'Прочитан локально' : 'Проверен'} · ${formatBytes(source.sizeBytes)}` : 'Демонстрационный предпросмотр'}
             </span>
           </div>
 
@@ -282,12 +306,21 @@ export function SafeLocalEdit() {
                 disabled={working || activeExport || options.length === 0}
                 onChange={(event) => void chooseSource(event.target.value)}
               >
-                {options.length === 0 && <option value="">Нет готовых MP4</option>}
+                <option value="">{options.length === 0 ? 'Нет готовых MP4' : 'Выберите исходник'}</option>
                 {options.map((option) => <option key={option.jobId} value={option.jobId}>{option.filename}</option>)}
               </select>
               {options.length === 0 && <small>Скачайте видео в разделе «Загрузка» — готовый MP4 появится здесь автоматически.</small>}
             </label>
           )}
+          {!loading && !capability?.ready && <div className="planning-toolbar">
+            <label className="planning-consent"><input type="checkbox" checked={localRights} disabled={working} onChange={(e) => setLocalRights(e.target.checked)} /><span>У меня есть право просмотреть этот файл</span></label>
+            <button className="btn-ghost" type="button" disabled={!localRights || working} onClick={() => fileRef.current?.click()}>Выбрать локальный MP4</button>
+            <input type="file" ref={fileRef} hidden accept=".mp4,video/mp4" aria-label="Локальный MP4 для предпросмотра" onChange={(e) => { const file = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (file) void chooseLocal(file); }} />
+            <p className="planning-muted">До 60 МБ и 5 минут. Только чтение в браузере, без загрузки на сервер. Кодирование здесь выключено.</p>
+          </div>}
+          {previewUrl && <><video ref={videoRef} className="safe-edit__video" src={previewUrl} controls preload="metadata" playsInline aria-label="Предпросмотр локального видео"
+            onTimeUpdate={(e) => { if (e.currentTarget.currentTime >= endSeconds) e.currentTarget.pause(); }} />
+            <button className="btn-ghost" type="button" disabled={!planResult.plan || working} onClick={() => { const video = videoRef.current; if (video) { video.currentTime = startSeconds; void video.play().catch(() => setError('Нажмите воспроизведение в самом плеере.')); } }}>Посмотреть выбранный фрагмент</button></>}
 
           <div className="safe-edit__frame" aria-label="Схематичный предпросмотр выбранного клипа">
             <div className="safe-edit__frame-grid" />
@@ -309,12 +342,12 @@ export function SafeLocalEdit() {
           <div className="safe-edit__controls">
             <label>
               <span>Начало, сек</span>
-              <input type="number" min="0" max={Math.max(0, durationSeconds - 1)} value={startSeconds} disabled={activeExport} onChange={(event) => revise(setStartSeconds, Number(event.target.value))} />
+              <input type="number" aria-label="Начало, сек" step="0.001" min="0" max={Math.max(0, durationSeconds - 0.001)} value={startSeconds} disabled={activeExport || working} onChange={(event) => revise(setStartSeconds, Number(event.target.value))} />
               <input className="safe-edit__range" aria-label="Начало клипа" type="range" min="0" max={Math.max(0, durationSeconds - 1)} value={startSeconds} disabled={activeExport} onChange={(event) => revise(setStartSeconds, Number(event.target.value))} />
             </label>
             <label>
               <span>Конец, сек</span>
-              <input type="number" min="1" max={durationSeconds} value={endSeconds} disabled={activeExport} onChange={(event) => revise(setEndSeconds, Number(event.target.value))} />
+              <input type="number" aria-label="Конец, сек" step="0.001" min="0.001" max={durationSeconds} value={endSeconds} disabled={activeExport || working} onChange={(event) => revise(setEndSeconds, Number(event.target.value))} />
               <input className="safe-edit__range" aria-label="Конец клипа" type="range" min="1" max={durationSeconds} value={endSeconds} disabled={activeExport} onChange={(event) => revise(setEndSeconds, Number(event.target.value))} />
             </label>
           </div>

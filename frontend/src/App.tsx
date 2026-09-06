@@ -12,10 +12,13 @@ import { BeatScenePlanner } from './components/BeatScenePlanner';
 import { DatasetLab } from './components/DatasetLab';
 import { MediaLibrary } from './components/MediaLibrary';
 import { ProjectFiles } from './components/ProjectFiles';
+import { StoryboardPlanner } from './components/StoryboardPlanner';
+import type { StoryScene } from './services/projectStoryboardContract';
+import { useProjects } from './hooks/useLocalDraft';
 import { MediaRequest, useDownloads } from './store/downloads';
 import { fetchInfo } from './api/media';
 
-const WORKSPACES = ['downloads', 'library', 'intake', 'beats', 'datasets', 'studio', 'edit'] as const;
+const WORKSPACES = ['downloads', 'library', 'intake', 'beats', 'storyboard', 'datasets', 'studio', 'edit'] as const;
 type Workspace = typeof WORKSPACES[number];
 
 function readWorkspace(): Workspace {
@@ -26,7 +29,11 @@ function readWorkspace(): Workspace {
 export default function App() {
   const [fetching, setFetching] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace>(readWorkspace);
-  const [projectGeneration, setProjectGeneration] = useState(0);
+  const projects = useProjects(workspace === 'intake' || workspace === 'beats' || workspace === 'storyboard');
+  const [editScene, setEditScene] = useState<StoryScene | undefined>();
+  const [editProjectId, setEditProjectId] = useState('');
+  const projectLocked = projects.busy || !!projects.projects.find((p) => p.id === projects.activeId)?.deletedAt;
+  const projectGeneration = projects.activeId;
   const store = useDownloads();
 
   async function fetchItem(id: string, url: string) {
@@ -89,6 +96,8 @@ export default function App() {
       ? `${store.requests.filter((request) => request.status !== 'done').length} в плане`
       : workspace === 'beats'
         ? 'Локальный анализ'
+        : workspace === 'storyboard'
+          ? 'Сценарий проекта'
         : workspace === 'datasets'
           ? 'Без запуска обучения'
         : workspace === 'edit'
@@ -125,6 +134,7 @@ export default function App() {
             ['library', 'Медиатека'],
             ['intake', 'План'],
             ['beats', 'Бит-карта'],
+            ['storyboard', 'Сценарий'],
             ['datasets', 'Датасеты'],
             ['studio', 'Видео-студия'],
             ['edit', 'Безопасный монтаж'],
@@ -147,13 +157,14 @@ export default function App() {
       <DesktopUpdater />
 
       <main className={workspace === 'downloads' ? 'download-shell' : 'studio-shell'}>
-        {(workspace === 'intake' || workspace === 'beats') && <ProjectFiles onRestored={() => setProjectGeneration((value) => value + 1)} />}
+        {(['intake', 'beats', 'storyboard'].includes(workspace)) && <ProjectFiles />}
         {workspace === 'library' && <MediaLibrary />}
         {workspace === 'studio' && <ReleaseStudio />}
-        {workspace === 'beats' && <BeatScenePlanner key={projectGeneration} />}
+        {workspace === 'beats' && projects.phase !== 'loading' && <div inert={projectLocked}><BeatScenePlanner key={projectGeneration} /></div>}
+        {workspace === 'storyboard' && projects.phase !== 'loading' && <div inert={projectLocked}><StoryboardPlanner key={projectGeneration} onEdit={(scene) => { setEditProjectId(projects.activeId); setEditScene(structuredClone(scene)); selectWorkspace('edit'); }} /></div>}
         {workspace === 'datasets' && <DatasetLab />}
-        {workspace === 'edit' && <SafeLocalEdit />}
-        {workspace === 'intake' && <MediaIntake key={projectGeneration} onPrepare={handlePrepare} />}
+        {workspace === 'edit' && <SafeLocalEdit key={editProjectId === projects.activeId ? editScene?.id ?? 'standalone' : 'standalone'} scene={editProjectId === projects.activeId ? editScene : undefined} onBack={() => selectWorkspace('storyboard')} />}
+        {workspace === 'intake' && projects.phase !== 'loading' && <div inert={projectLocked}><MediaIntake key={projectGeneration} onPrepare={handlePrepare} /></div>}
         {workspace === 'downloads' && (
           <>
             <section className="download-hero" aria-labelledby="download-title">

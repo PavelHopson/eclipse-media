@@ -2,6 +2,7 @@ import type { BeatMapProject } from './beatMapContract';
 import type { LocalTranscript, ResearchNote } from './researchContract';
 import type { Performer, SceneDirection } from './sceneDirectionContract';
 import { EMOTIONS, INTENSITIES } from './sceneDirectionContract';
+import { validateStoryboard, type Storyboard } from './projectStoryboardContract';
 
 export type DraftKind = 'research' | 'beats';
 export interface ResearchDraft {
@@ -15,7 +16,7 @@ export interface DirectionDraft {
   edits: Record<string, SceneDirection>;
   performer: Performer;
 }
-export interface BeatDraft { project: BeatMapProject | null; direction: DirectionDraft }
+export interface BeatDraft { project: BeatMapProject | null; direction: DirectionDraft; storyboard?: Storyboard }
 export const emptyResearchDraft = (): ResearchDraft => ({ loaded: null, notes: [], videoUrl: '', page: 0 });
 export const emptyDirectionDraft = (): DirectionDraft => ({ activeId: '', edits: {}, performer: { kind: 'original', consentReference: '' } });
 export const emptyBeatDraft = (): BeatDraft => ({ project: null, direction: emptyDirectionDraft() });
@@ -86,7 +87,9 @@ export function validateResearchDraft(value: unknown): asserts value is Research
 }
 
 export function validateBeatDraft(value: unknown): asserts value is BeatDraft {
-  const draft = object(value, ['project', 'direction']);
+  const hasStoryboard = value && typeof value === 'object' && Object.hasOwn(value, 'storyboard');
+  const draft = object(value, hasStoryboard ? ['project', 'direction', 'storyboard'] : ['project', 'direction']);
+  if (hasStoryboard) validateStoryboard(draft.storyboard);
   const ids = new Set<string>();
   if (draft.project !== null) {
     const project = object(draft.project, ['schemaVersion', 'source', 'analysis', 'beats', 'sections', 'scenes']);

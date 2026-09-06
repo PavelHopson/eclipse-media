@@ -20,7 +20,7 @@ export class DraftController<T> {
   private baseKnown = false;
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
   private notifying: () => void = () => {};
-  constructor(readonly kind: DraftKind, private empty: () => T, private validate: (value: unknown) => void, private repository: DraftRepository) {
+  constructor(readonly kind: DraftKind, private empty: () => T, private validate: (value: unknown) => void, private repository: DraftRepository, readonly storageKey: string = kind) {
     this.snapshot = { data: empty(), phase: 'loading', enabled: true, ready: false, updatedAt: null, message: '' };
   }
   getSnapshot = () => this.snapshot;
@@ -30,6 +30,44 @@ export class DraftController<T> {
   hasUnsaved = () => this.running || this.dirty || this.locked;
   getVersion = () => this.version;
   getReplacementVersion = () => this.replacementVersion;
+  // Only for a newly created session whose transaction has already committed.
+  initializeFromRecord(raw: string, transient?: T) {
+    if (this.started) throw new Error('Раздел уже открыт.');
+    const record = decodeDraft<T>(raw, this.kind, this.validate);
+    if (transient !== undefined) this.validate(transient);
+    this.started = true; this.baseKnown = true; this.base = raw; this.version++;
+    const data = record.enabled ? record.data : transient ?? this.empty();
+    this.snapshot = { data, enabled: record.enabled, ready: true, updatedAt: record.updatedAt, message: '',
+      phase: !record.enabled ? 'off' : JSON.stringify(data) === JSON.stringify(this.empty()) ? 'empty' : 'saved' };
+  }
+  async waitForIdle() {
+    for (let i = 0; i < 100 && (this.running || this.reading); i++) await new Promise((resolve) => setTimeout(resolve, 20));
+    if (this.running || this.reading) throw new Error('Сохранение ещё идёт. Подождите и повторите действие.');
+  }
+  // Freeze a departing project; unchanged records must not invalidate other tabs.
+  reserveNavigation(forceRevision = false) {
+    if (!this.snapshot.ready || this.running || this.reading || this.locked || this.blocked) {
+      throw new Error('Сначала устраните ошибку сохранения или конфликт в разделах «План» и «Бит-карта». Текущий проект остаётся открыт.');
+    }
+    this.validate(this.snapshot.data);
+    const raw = JSON.stringify({ schema: DRAFT_SCHEMA, kind: this.kind, revision: crypto.randomUUID(), updatedAt: Date.now(),
+      enabled: this.snapshot.enabled, data: this.snapshot.enabled ? this.snapshot.data : this.empty() });
+    const record = decodeDraft<T>(raw, this.kind, this.validate);
+    const write: DraftWrite | null = this.dirty || forceRevision ? { key: this.storageKey, expected: this.base, next: raw } : null;
+    this.locked = true; clearTimeout(this.saveTimer); this.saveTimer = undefined;
+    return { write,
+      commit: () => {
+        if (write) {
+          this.base = raw; this.dirty = false;
+          this.snapshot = { ...this.snapshot, updatedAt: record.updatedAt, message: '',
+            phase: !this.snapshot.enabled ? 'off' : JSON.stringify(this.snapshot.data) === JSON.stringify(this.empty()) ? 'empty' : 'saved' };
+        }
+        this.replacementVersion++;
+      },
+      publish: () => { this.listeners.forEach((listener) => listener()); if (write) this.notifying(); },
+      release: () => { this.locked = false; if (this.dirty && !this.blocked) this.saveTimer = setTimeout(() => { void this.flush(); }, 250); },
+    };
+  }
   async init() {
     if (this.started) return;
     this.started = true;
@@ -41,7 +79,7 @@ export class DraftController<T> {
     clearTimeout(this.saveTimer); this.saveTimer = undefined;
     this.emit({ phase: 'loading', ready: false, message: '' });
     try {
-      const raw = await this.repository.read(this.kind);
+      const raw = await this.repository.read(this.storageKey);
       this.base = raw;
       this.baseKnown = true;
       let record;
@@ -97,7 +135,7 @@ export class DraftController<T> {
     if (this.running || this.reading || this.locked || !this.snapshot.ready) return;
     this.reading = true;
     this.emit({ phase: 'saving' });
-    try { this.base = await this.repository.read(this.kind); this.baseKnown = true; }
+    try { this.base = await this.repository.read(this.storageKey); this.baseKnown = true; }
     catch { this.emit({ phase: 'conflict', message: 'Не удалось открыть хранилище. Ваши правки пока только в памяти. Можно снова нажать «Сохранить мой вариант».' }); return; }
     finally { this.reading = false; }
     this.emit({ enabled: true });
@@ -113,7 +151,7 @@ export class DraftController<T> {
     if (!this.snapshot.ready || this.running || this.dirty || this.locked) return;
     const base = this.base; const version = this.version;
     try {
-      const raw = await this.repository.read(this.kind);
+      const raw = await this.repository.read(this.storageKey);
       if (this.locked || this.running || this.dirty || base !== this.base || version !== this.version) return;
       if (raw !== this.base) {
         this.blocked = true;
@@ -133,7 +171,7 @@ export class DraftController<T> {
     const raw = JSON.stringify({ schema: DRAFT_SCHEMA, kind: this.kind, revision: crypto.randomUUID(), updatedAt: Date.now(),
       enabled: this.snapshot.enabled, data: this.snapshot.enabled ? data : this.empty() });
     const record = decodeDraft<T>(raw, this.kind, this.validate);
-    const write: DraftWrite | null = this.baseKnown ? { key: this.kind, expected: this.base, next: raw } : null;
+    const write: DraftWrite | null = this.baseKnown ? { key: this.storageKey, expected: this.base, next: raw } : null;
     this.locked = true;
     clearTimeout(this.saveTimer); this.saveTimer = undefined;
     let committed = false;
@@ -166,7 +204,7 @@ export class DraftController<T> {
         const raw = JSON.stringify({ schema: DRAFT_SCHEMA, kind: this.kind, revision: crypto.randomUUID(), updatedAt: Date.now(),
           enabled: this.snapshot.enabled, data: this.snapshot.enabled ? this.snapshot.data : this.empty() });
         const record = decodeDraft<T>(raw, this.kind, this.validate);
-        await this.repository.compareAndWrite(this.kind, this.base, raw);
+        await this.repository.compareAndWrite(this.storageKey, this.base, raw);
         this.base = raw;
         this.dirty = version !== this.version;
         this.emit({ updatedAt: record.updatedAt });

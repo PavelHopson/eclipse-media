@@ -63,7 +63,7 @@ export const draftRepository: ProjectRepository = {
           if (normalize(request.result) !== write.expected) { conflict = true; transaction.abort(); return; }
           // Validate every revision before writing; quota/errors abort the whole project.
           if (--remaining === 0) {
-            try { for (const item of writes) store.put(item.next, item.key); } catch { transaction.abort(); }
+            try { for (const item of writes) if (item.next !== item.expected) store.put(item.next, item.key); } catch { transaction.abort(); }
           }
         };
       }

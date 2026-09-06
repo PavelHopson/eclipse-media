@@ -1,10 +1,24 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { DraftController } from '../services/draftController';
-import { emptyBeatDraft, emptyResearchDraft, validateBeatDraft, validateResearchDraft } from '../services/draftContract';
 import { draftRepository } from '../services/draftStorage';
+import { LocalProjects } from '../services/localProjects';
 
-export const researchDraft = new DraftController('research', emptyResearchDraft, validateResearchDraft, draftRepository);
-export const beatDraft = new DraftController('beats', emptyBeatDraft, validateBeatDraft, draftRepository);
+let tabSelection: Storage | undefined;
+try { tabSelection = window.sessionStorage; } catch { /* Optional tab selection. */ }
+export const localProjects = new LocalProjects(draftRepository, tabSelection);
+export function useProjects(enabled = true) {
+  const snapshot = useSyncExternalStore(localProjects.subscribe, localProjects.getSnapshot);
+  useEffect(() => { if (enabled) void localProjects.init(); }, [enabled]);
+  return snapshot;
+}
+export function useProjectDrafts() { useProjects(); return localProjects.getSession(); }
+let catalogChannel: BroadcastChannel | undefined;
+try {
+  catalogChannel = new BroadcastChannel('eclipse-media-project-catalog');
+  catalogChannel.onmessage = () => { void localProjects.refresh(); };
+  localProjects.setNotifier(() => { try { catalogChannel?.postMessage('changed'); } catch { /* CAS remains authoritative. */ } });
+} catch { /* Optional, contains no project names or content. */ }
+window.addEventListener('focus', () => { void localProjects.refresh(); });
 const connections = new Map<object, { users: number; dispose: () => void }>();
 
 export function useLocalDraft<T>(controller: DraftController<T>) {
@@ -19,8 +33,8 @@ export function useLocalDraft<T>(controller: DraftController<T>) {
     let channel: BroadcastChannel | undefined;
     try {
       channel = new BroadcastChannel('eclipse-media-draft-changes');
-      channel.onmessage = (event) => { if (event.data === controller.kind) void controller.checkExternal(); };
-      controller.setNotifier(() => { try { channel?.postMessage(controller.kind); } catch { /* CAS still protects other tabs. */ } });
+      channel.onmessage = (event) => { if (event.data === controller.storageKey) void controller.checkExternal(); };
+      controller.setNotifier(() => { try { channel?.postMessage(controller.storageKey); } catch { /* CAS still protects other tabs. */ } });
     } catch { /* BroadcastChannel is optional. Never transport draft content here. */ }
     const onFocus = () => { void controller.checkExternal(); };
     window.addEventListener('focus', onFocus);
@@ -33,5 +47,5 @@ export function useLocalDraft<T>(controller: DraftController<T>) {
 
 // Keep the guard while a workspace is unmounted but its final transaction is pending.
 window.addEventListener('beforeunload', (event) => {
-  if (researchDraft.hasUnsaved() || beatDraft.hasUnsaved()) { event.preventDefault(); event.returnValue = ''; }
+  if (localProjects.hasUnsaved()) { event.preventDefault(); event.returnValue = ''; }
 });
