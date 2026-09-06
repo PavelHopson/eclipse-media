@@ -6,7 +6,7 @@ Updated: 2026-09-06.
 
 - User approved practical use of reviewed resources.
 - Checkout: E:/projects/eclipse-media; branch master; base HEAD 4e91074.
-- Starting Git state was clean. Existing branch retained; no commit, push or deployment.
+- Starting Git state was clean. Existing master retained. Application commit a3741f630ac9d1cd4d54fe30bed150988d624cc2 was subsequently pushed and deployed with current user approval.
 - Scope: local frontend implementation of transcript evidence review, scene direction and inert Codex exports. No Windows tweaks, GPU mods, external skill/model installation or paid API calls.
 - Library resource review is a separate change in E:/projects/eclipse-library/.artifacts/original-motion/production-release; this task does not publish that checkout.
 
@@ -53,14 +53,14 @@ Applied conducting-api-security-testing proportionally to the changed import/URL
 - Low: missing favicon 404 fixed with the existing asset.
 - No new dependencies, secret values, authentication/API routes, shell commands, executable imports or production configuration were added. New flows contain no fetch, storage persistence or unsafe HTML sink.
 - Prompt-injection protection is a data boundary and downstream review requirement, not a guarantee that any external agent will obey the handoff.
-- Dependency advisories of unchanged packages, backend and desktop runtime were not audited in this scoped pass.
+- Release follow-up checked all frontend dependency advisories: npm reported zero. Backend dependency advisories and desktop runtime were not audited in this scoped pass.
 
 ## Remaining limits and next safe action
 
 - Drafts are in memory; leaving the workspace or reloading clears them. Download before leaving. Import of exported JSON and persistent autosave are not implemented.
 - No automatic transcript retrieval, speech recognition, video-frame understanding, provider generation or publishing.
 - Existing web/desktop version remains 1.6.0; no installer was built.
-- Safe next step: user previews local Plan → Разобрать субтитры and Бит-карта → Открыть пример → Режиссура сцен.
+- Safe next step: user uses production Plan → Разобрать субтитры and Бит-карта → Открыть пример → Режиссура сцен. Future autosave/import work is separate from this completed release.
 - User subsequently authorized production publication in the current turn. The existing master-only manual deploy workflow is the release path; desktop release is excluded.
 
 ## Production release preflight
@@ -73,4 +73,22 @@ Applied conducting-api-security-testing proportionally to the changed import/URL
 - Deployment workflow reviewed: pinned Actions revisions, production environment, read-only repository permission, validated SSH parameters, strict host-key checking, healthcheck and previous-release rollback. No CI or secret changes.
 - Preflight production HTML and API returned HTTP 200 via the current public-DNS address with hostname and TLS verification retained. Local resolver initially timed out; no machine DNS settings changed.
 - Baseline production assets: index-oRZLWXEl.js and index-CiaW1j83.css.
-- Release completion and actual deployed revision must be verified after workflow execution; this preflight is not a production-success claim.
+- Preflight was followed by the completed release and runtime checks below.
+
+## Published and verified
+
+- Application revision: a3741f630ac9d1cd4d54fe30bed150988d624cc2.
+- CI: [34023129281](https://github.com/PavelHopson/eclipse-media/actions/runs/34023129281), success for this revision.
+- Production workflow: [34023134011](https://github.com/PavelHopson/eclipse-media/actions/runs/34023134011), success for this revision, including build, container smoke and VPS activation/healthcheck.
+- Production: https://media.eclipse-forge.ru/.
+- Seven Edge scenario runs passed on production: both flows at 1440/390/320 widths plus real decoding of a generated 8-second PCM WAV and direction export linked to its scene plan.
+- Production page errors: 0; HTTP errors: 0; external request attempts: 0; non-GET/HEAD mutation attempts: 0. Test files stayed in browser memory; downloads were captured in the isolated test profile.
+- Desktop direction and mobile research screenshots visually checked.
+- API health: ok=true, version=1.6.0, desktop_session=false, local_edit=preview-only, render_queue=preview-only.
+- Production assets matched local built bytes by SHA-256:
+  - index-Dn_j9K1X.js: 8014af55ac1b2b037e8cb6d0b177974151dac1b4c517287597b1ba442db03423.
+  - index-CHgjlsYc.css: bd770d6285ea93183d484e56c27f614c1a9f6346a9baf88d56be746596433e33.
+  - icon.svg: 2d1bea5a7da8db42c11b1f1eb7cb147f70930049c56d1ff07ea716f60cb352c9.
+- Evidence: .runtime/news-pilot-20260906/production-browser-results.json, production-*.png, release-*.log and release-audit*.json.
+- Operational caveat: the local default DNS resolver continued to time out. Google public DNS resolved the domain to 111.88.125.84. Verification used this address only as a per-process resolver mapping; HTTPS hostname/certificate checks remained enabled. No hosts, Windows DNS, proxy or server configuration was changed. Normal resolution from this local environment remains unverified.
+- This receipt is documentation only; the application revision above is the deployed release, independent of any subsequent docs-only commit.
