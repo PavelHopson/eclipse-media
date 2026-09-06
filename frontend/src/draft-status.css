@@ -1,0 +1,16 @@
+.draft-status { margin: 18px 0; padding: 14px 0; border-block: 1px solid var(--border); color: var(--text-secondary); font-size: 13px; }
+.draft-status__row { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; }
+.draft-status p { margin: 0; flex: 1 1 220px; }
+.draft-status small { display: block; margin-top: 10px; max-width: 900px; line-height: 1.6; font-size: 12px; }
+.draft-status__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.draft-status__actions label { display: flex; align-items: center; gap: 8px; min-height: 42px; }
+.draft-status input { accent-color: var(--accent); width: 16px; height: 16px; flex: 0 0 16px; }
+.draft-status button { min-height: 42px; padding: 8px 12px; border: 1px solid var(--border-hover); border-radius: 8px; background: transparent; color: var(--text); font-size: 12px; cursor: pointer; }
+.draft-status button:hover:not(:disabled) { background: var(--surface2); }
+.draft-status button:disabled, .draft-status label:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+.draft-status :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.draft-status__warning { color: #f2be7e; }
+@media (max-width: 480px) { .draft-status__actions { width: 100%; } .draft-status__actions button { flex: 1 1 auto; } }
+.draft-form { border: 0; margin: 0; padding: 0; min-width: 0; }
+.research-workspace > .draft-form { display: grid; gap: 18px; }
+.beat-planner > .draft-form { display: grid; gap: 20px; }

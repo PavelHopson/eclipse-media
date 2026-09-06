@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BeatMapProject,
   buildEnergyEnvelope,
@@ -13,6 +13,9 @@ import {
 } from '../services/beatMapContract';
 import '../beat-scene.css';
 import { SceneDirectionPlanner } from './SceneDirectionPlanner';
+import { DraftStatus } from './DraftStatus';
+import { beatDraft, useLocalDraft } from '../hooks/useLocalDraft';
+import { emptyDirectionDraft } from '../services/draftContract';
 
 const SHOTS: ShotType[] = ['Общий план', 'Средний план', 'Крупный план', 'Деталь', 'Типографика'];
 const TRANSITIONS: TransitionType[] = ['Склейка', 'По движению', 'Через затемнение', 'Световой импульс'];
@@ -43,9 +46,12 @@ async function decodeAudio(file: File): Promise<AudioBuffer> {
 
 export function BeatScenePlanner() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const run = useRef(0);
+  useEffect(() => () => { run.current++; }, []);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
-  const [project, setProject] = useState<BeatMapProject | null>(null);
-  const [projectRevision, setProjectRevision] = useState(0);
+  const draft = useLocalDraft(beatDraft);
+  const { project } = draft.data;
+  const setProject = (update: (project: BeatMapProject | null) => BeatMapProject | null) => beatDraft.update((current) => ({ ...current, project: update(current.project) }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('Выберите собственный аудиофайл или откройте синтетический пример.');
@@ -57,6 +63,8 @@ export function BeatScenePlanner() {
   }, [project]);
 
   async function analyzeFile(file: File) {
+    if (!draft.ready) return;
+    const id = ++run.current;
     setError('');
     setBusy(true);
     setStatus('Декодируем аудио локально. Файл не отправляется в сеть.');
@@ -64,22 +72,23 @@ export function BeatScenePlanner() {
       validateAudioCandidate(file);
       if (!rightsConfirmed) throw new Error('Подтвердите право на обработку аудиофайла.');
       const buffer = await decodeAudio(file);
+      if (id !== run.current) return;
       if (buffer.duration > MAX_AUDIO_DURATION_SECONDS) {
         throw new Error('Аудио длиннее 12 минут. Для прототипа выберите фрагмент короче.');
       }
       setStatus('Строим энергетическую огибающую и ищем ритмические опоры.');
       await new Promise<void>((resolve) => window.setTimeout(resolve, 16));
+      if (id !== run.current) return;
       const envelope = buildEnergyEnvelope(buffer);
       const next = analyzeEnvelope(envelope, buffer.duration, { fileName: file.name, bytes: file.size });
-      setProject(next);
-      setProjectRevision((value) => value + 1);
+      beatDraft.update(() => ({ project: next, direction: emptyDirectionDraft() }));
       setStatus(`Готово: ${next.analysis.bpm} BPM, ${next.scenes.length} сцен. Проверьте план перед экспортом.`);
     } catch (caught) {
-      setProject(null);
+      if (id !== run.current) return;
       setError(caught instanceof Error ? caught.message : 'Не удалось проанализировать аудио.');
-      setStatus('Анализ остановлен. Выберите другой локальный файл.');
+      setStatus('Анализ остановлен. Предыдущий план не изменён. Выберите другой локальный файл.');
     } finally {
-      setBusy(false);
+      if (id === run.current) setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
     }
   }
@@ -90,10 +99,10 @@ export function BeatScenePlanner() {
   }
 
   function loadExample() {
+    if (!draft.ready) return;
     setError('');
     const next = createSyntheticBeatMap();
-    setProject(next);
-    setProjectRevision((value) => value + 1);
+    beatDraft.update(() => ({ project: next, direction: emptyDirectionDraft() }));
     setStatus('Синтетический пример готов. Это тестовый ритм 120 BPM без чужого аудио.');
   }
 
@@ -113,11 +122,19 @@ export function BeatScenePlanner() {
     link.download = safeDownloadName(project.source.fileName);
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    setStatus('JSON-план сохранён локально. Публикация и рендер не запускались.');
+    setStatus('JSON-план подготовлен к сохранению. Публикация и рендер не запускались.');
   }
 
   function reset() {
-    setProject(null);
+    if (!window.confirm('Удалить черновик бит-карты и режиссуры, затем начать заново?')) return;
+    clearFeedback();
+    beatDraft.clear();
+  }
+
+  function clearFeedback() {
+    run.current++;
+    setBusy(false);
+    setRightsConfirmed(false);
     setError('');
     setStatus('Выберите собственный аудиофайл или откройте синтетический пример.');
   }
@@ -136,6 +153,9 @@ export function BeatScenePlanner() {
           <div><dt>Длина</dt><dd>до 12 минут</dd></div>
         </dl>
       </header>
+      <DraftStatus controller={beatDraft} snapshot={draft} busy={busy} onClear={clearFeedback} />
+      <fieldset className="draft-form" disabled={!draft.ready}>
+      <legend className="sr-only">Бит-карта и режиссура</legend>
 
       <section className="beat-intake" aria-labelledby="beat-intake-title">
         <div className="beat-intake__copy">
@@ -208,7 +228,7 @@ export function BeatScenePlanner() {
           <section className="scene-plan" aria-labelledby="scene-plan-title">
             <header>
               <div><h2 id="scene-plan-title">План сцен</h2><p>Измените названия, планы и переходы перед передачей в монтаж.</p></div>
-              <div className="scene-plan__actions"><button type="button" onClick={reset}>Начать заново</button><button type="button" className="is-primary" onClick={exportPlan}>Скачать JSON</button></div>
+              <div className="scene-plan__actions"><button type="button" disabled={busy} onClick={reset}>Начать заново</button><button type="button" className="is-primary" onClick={exportPlan}>Скачать JSON</button></div>
             </header>
             <div className="scene-plan__list">
               {project.scenes.map((scene, index) => (
@@ -222,9 +242,10 @@ export function BeatScenePlanner() {
               ))}
             </div>
           </section>
-          <SceneDirectionPlanner key={projectRevision} project={project} />
+          <SceneDirectionPlanner project={project} value={draft.data.direction} onChange={(update) => beatDraft.update((current) => ({ ...current, direction: update(current.direction) }))} />
         </div>
       )}
+      </fieldset>
     </section>
   );
 }

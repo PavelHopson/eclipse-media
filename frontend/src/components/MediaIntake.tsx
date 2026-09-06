@@ -44,7 +44,14 @@ function requestLabel(request: MediaRequest): string {
 
 export function MediaIntake({ onPrepare }: Props) {
   const store = useDownloads();
-  const [mode, setMode] = useState<'links' | 'research'>('links');
+  const [mode, changeMode] = useState<'links' | 'research'>(() => new URLSearchParams(window.location.search).get('intakeMode') === 'research' ? 'research' : 'links');
+  function setMode(mode: 'links' | 'research') {
+    changeMode(mode);
+    const address = new URL(window.location.href);
+    if (mode === 'research') address.searchParams.set('intakeMode', mode);
+    else address.searchParams.delete('intakeMode');
+    window.history.replaceState(window.history.state, '', address);
+  }
   const [url, setUrl] = useState('');
   const [intent, setIntent] = useState<MediaIntent>('watch');
   const [project, setProject] = useState(PROJECTS[0]);

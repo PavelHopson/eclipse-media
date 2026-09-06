@@ -3,11 +3,14 @@ import type { BeatMapProject } from '../services/beatMapContract';
 import { buildDirectionExport, defaultDirection, directionPrompt, EMOTIONS, INTENSITIES, type Performer, type SceneDirection } from '../services/sceneDirectionContract';
 import { codexHandoff, downloadLocalText } from '../services/researchContract';
 import '../research-direction.css';
+import type { DirectionDraft } from '../services/draftContract';
 
-export function SceneDirectionPlanner({ project }: { project: BeatMapProject }) {
-  const [activeId, setActiveId] = useState(project.scenes[0].id);
-  const [edits, setEdits] = useState<Record<string, SceneDirection>>({});
-  const [performer, setPerformer] = useState<Performer>({ kind: 'original', consentReference: '' });
+export function SceneDirectionPlanner({ project, value, onChange }: {
+  project: BeatMapProject; value: DirectionDraft; onChange: (update: (current: DirectionDraft) => DirectionDraft) => void;
+}) {
+  const { activeId, edits, performer } = value;
+  const setActiveId = (activeId: string) => onChange((current) => ({ ...current, activeId }));
+  const setPerformer = (performer: Performer) => onChange((current) => ({ ...current, performer }));
   const [status, setStatus] = useState('');
   const scene = project.scenes.find((item) => item.id === activeId) ?? project.scenes[0];
   const direction = edits[scene.id] ?? defaultDirection();
@@ -17,7 +20,7 @@ export function SceneDirectionPlanner({ project }: { project: BeatMapProject }) 
   }, [project, edits, performer]);
 
   function update(patch: Partial<SceneDirection>) {
-    setEdits((current) => ({ ...current, [scene.id]: { ...(current[scene.id] ?? defaultDirection()), ...patch } }));
+    onChange((current) => ({ ...current, edits: { ...current.edits, [scene.id]: { ...(current.edits[scene.id] ?? defaultDirection()), ...patch } } }));
     setStatus('');
   }
   function save(forCodex: boolean) {

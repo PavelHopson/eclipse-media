@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildResearchExport, codexHandoff, cueLink, displayCueTime, downloadLocalText,
   MAX_SELECTIONS, parseTranscript, sha256Bytes, validateTranscriptFile, youtubeVideoId,
-  type LocalTranscript, type ResearchNote, type ReviewStatus,
+  type ResearchNote, type ReviewStatus,
 } from '../services/researchContract';
+import { researchDraft, useLocalDraft } from '../hooks/useLocalDraft';
+import { DraftStatus } from './DraftStatus';
 import '../research-direction.css';
 
 const EXAMPLE = 'WEBVTT\n\n00:00.000 --> 00:04.000\nВ этом примере мы планируем короткий ролик о мастерской.\n\n00:04.500 --> 00:09.000\nСначала покажем процесс, затем готовый результат.\n\n00:09.000 --> 00:14.000\nСтоимость и сроки нужно проверить у автора проекта.\n';
@@ -16,10 +18,11 @@ export function TranscriptResearch() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
-  const [loaded, setLoaded] = useState<{ transcript: LocalTranscript; sha256: string; fileName: string } | null>(null);
-  const [notes, setNotes] = useState<ResearchNote[]>([]);
-  const [page, setPage] = useState(0);
+  const draft = useLocalDraft(researchDraft);
+  const { videoUrl, loaded, notes, page } = draft.data;
+  const setVideoUrl = (videoUrl: string) => researchDraft.update((current) => ({ ...current, videoUrl }));
+  const setNotes = (update: (notes: ResearchNote[]) => ResearchNote[]) => researchDraft.update((current) => ({ ...current, notes: update(current.notes) }));
+  const setPage = (update: (page: number) => number) => researchDraft.update((current) => ({ ...current, page: update(current.page) }));
   useEffect(() => () => { run.current++; }, []);
 
   const video = useMemo(() => {
@@ -33,6 +36,7 @@ export function TranscriptResearch() {
   }, [loaded, notes, videoUrl]);
 
   async function load(file?: File) {
+    if (!draft.ready) return;
     const id = ++run.current;
     setBusy(true); setError(''); setStatus('Читаем субтитры на этом устройстве.');
     try {
@@ -48,8 +52,7 @@ export function TranscriptResearch() {
       const transcript = parseTranscript(text);
       const sha256 = await sha256Bytes(bytes);
       if (id !== run.current) return;
-      setLoaded({ transcript, sha256, fileName: file?.name ?? 'synthetic-example.vtt' });
-      setNotes([]); setPage(0);
+      researchDraft.update((current) => ({ ...current, loaded: { transcript, sha256, fileName: file?.name ?? 'synthetic-example.vtt' }, notes: [], page: 0 }));
       setStatus((file ? 'Файл прочитан. ' : 'Учебный пример открыт. ') + 'Выберите фрагмент и напишите тезис своими словами.');
     } catch (caught) {
       if (id === run.current) {
@@ -86,8 +89,11 @@ export function TranscriptResearch() {
     <section className="research-workspace" aria-labelledby="research-title">
       <header className="planning-heading">
         <h2 id="research-title">Разбор субтитров</h2>
-        <p>Выберите важные фрагменты, сформулируйте тезисы и сохраните разбор с таймкодами. Всё остаётся в этой вкладке до закрытия раздела.</p>
+        <p>Выберите важные фрагменты, сформулируйте тезисы и сохраните разбор с таймкодами. Локальный черновик поможет продолжить после перезагрузки.</p>
       </header>
+      <DraftStatus controller={researchDraft} snapshot={draft} busy={busy} onClear={() => { run.current++; setRights(false); setError(''); setStatus(''); }} />
+      <fieldset className="draft-form" disabled={!draft.ready}>
+      <legend className="sr-only">Разбор субтитров</legend>
       <div className="planning-toolbar">
         <label className="planning-consent">
           <input type="checkbox" checked={rights} disabled={busy} onChange={(event) => setRights(event.target.checked)} />
@@ -161,6 +167,7 @@ export function TranscriptResearch() {
           </div>
         </>
       )}
+      </fieldset>
     </section>
   );
 }
