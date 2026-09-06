@@ -74,7 +74,7 @@ test('workspace exposes a local-only accessible workflow', () => {
   const css = fs.readFileSync(cssPath, 'utf8');
 
   assert.match(app, /\['beats', 'Бит-карта'\]/);
-  assert.match(app, /<BeatScenePlanner \/>/);
+  assert.match(app, /<BeatScenePlanner key=\{projectGeneration\} \/>/);
   assert.match(component, /accept="audio\/\*,/);
   assert.match(component, /У меня есть право обработать этот файл/);
   assert.match(component, /Открыть пример/);

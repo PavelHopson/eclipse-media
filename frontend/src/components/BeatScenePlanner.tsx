@@ -65,6 +65,7 @@ export function BeatScenePlanner() {
   async function analyzeFile(file: File) {
     if (!draft.ready) return;
     const id = ++run.current;
+    const generation = beatDraft.getReplacementVersion();
     setError('');
     setBusy(true);
     setStatus('Декодируем аудио локально. Файл не отправляется в сеть.');
@@ -72,13 +73,13 @@ export function BeatScenePlanner() {
       validateAudioCandidate(file);
       if (!rightsConfirmed) throw new Error('Подтвердите право на обработку аудиофайла.');
       const buffer = await decodeAudio(file);
-      if (id !== run.current) return;
+      if (id !== run.current || generation !== beatDraft.getReplacementVersion()) return;
       if (buffer.duration > MAX_AUDIO_DURATION_SECONDS) {
         throw new Error('Аудио длиннее 12 минут. Для прототипа выберите фрагмент короче.');
       }
       setStatus('Строим энергетическую огибающую и ищем ритмические опоры.');
       await new Promise<void>((resolve) => window.setTimeout(resolve, 16));
-      if (id !== run.current) return;
+      if (id !== run.current || generation !== beatDraft.getReplacementVersion()) return;
       const envelope = buildEnergyEnvelope(buffer);
       const next = analyzeEnvelope(envelope, buffer.duration, { fileName: file.name, bytes: file.size });
       beatDraft.update(() => ({ project: next, direction: emptyDirectionDraft() }));

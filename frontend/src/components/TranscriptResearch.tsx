@@ -38,6 +38,7 @@ export function TranscriptResearch() {
   async function load(file?: File) {
     if (!draft.ready) return;
     const id = ++run.current;
+    const generation = researchDraft.getReplacementVersion();
     setBusy(true); setError(''); setStatus('Читаем субтитры на этом устройстве.');
     try {
       if (file) {
@@ -45,13 +46,13 @@ export function TranscriptResearch() {
         validateTranscriptFile(file);
       }
       const bytes = file ? await file.arrayBuffer() : new TextEncoder().encode(EXAMPLE).buffer;
-      if (id !== run.current) return;
+      if (id !== run.current || generation !== researchDraft.getReplacementVersion()) return;
       let text: string;
       try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
       catch { throw new Error('Не удалось прочитать UTF-8. Пересохраните субтитры в UTF-8.'); }
       const transcript = parseTranscript(text);
       const sha256 = await sha256Bytes(bytes);
-      if (id !== run.current) return;
+      if (id !== run.current || generation !== researchDraft.getReplacementVersion()) return;
       researchDraft.update((current) => ({ ...current, loaded: { transcript, sha256, fileName: file?.name ?? 'synthetic-example.vtt' }, notes: [], page: 0 }));
       setStatus((file ? 'Файл прочитан. ' : 'Учебный пример открыт. ') + 'Выберите фрагмент и напишите тезис своими словами.');
     } catch (caught) {

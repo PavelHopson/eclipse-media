@@ -1,10 +1,12 @@
 export const DRAFT_DATABASE = 'eclipse-media-drafts';
 export const DRAFT_STORE = 'drafts';
 export class DraftConflict extends Error {}
+export interface DraftWrite { key: string; expected: string | null; next: string }
 export interface DraftRepository {
   read(key: string): Promise<string | null>;
   compareAndWrite(key: string, expected: string | null, next: string): Promise<void>;
 }
+export interface ProjectRepository extends DraftRepository { compareAndWriteBatch(writes: DraftWrite[]): Promise<void> }
 const normalize = (value: unknown): string | null => value === undefined ? null : typeof value === 'string' ? value : '[invalid-record]';
 let connection: Promise<IDBDatabase> | undefined;
 
@@ -31,7 +33,7 @@ function database(): Promise<IDBDatabase> {
   return connection;
 }
 
-export const draftRepository: DraftRepository = {
+export const draftRepository: ProjectRepository = {
   async read(key) {
     const db = await database();
     return new Promise((resolve, reject) => {
@@ -42,17 +44,29 @@ export const draftRepository: DraftRepository = {
     });
   },
   async compareAndWrite(key, expected, next) {
+    return this.compareAndWriteBatch([{ key, expected, next }]);
+  },
+  async compareAndWriteBatch(writes) {
+    if (!writes.length) return;
+    if (new Set(writes.map((write) => write.key)).size !== writes.length) throw new Error('Повторяющийся раздел.');
     const db = await database();
     return new Promise((resolve, reject) => {
       // Reading and comparing inside the SAME write transaction prevents lost updates across tabs.
       const transaction = db.transaction(DRAFT_STORE, 'readwrite');
       const store = transaction.objectStore(DRAFT_STORE);
-      const request = store.get(key);
       let conflict = false;
-      request.onsuccess = () => {
-        if (normalize(request.result) !== expected) { conflict = true; transaction.abort(); return; }
-        try { store.put(next, key); } catch { transaction.abort(); }
-      };
+      let remaining = writes.length;
+      for (const write of writes) {
+        const request = store.get(write.key);
+        request.onsuccess = () => {
+          if (conflict) return;
+          if (normalize(request.result) !== write.expected) { conflict = true; transaction.abort(); return; }
+          // Validate every revision before writing; quota/errors abort the whole project.
+          if (--remaining === 0) {
+            try { for (const item of writes) store.put(item.next, item.key); } catch { transaction.abort(); }
+          }
+        };
+      }
       transaction.oncomplete = () => resolve();
       transaction.onabort = () => reject(conflict ? new DraftConflict() : new Error('Не удалось сохранить черновик.'));
     });

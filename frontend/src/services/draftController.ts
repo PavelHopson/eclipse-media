@@ -1,5 +1,5 @@
 import { DRAFT_SCHEMA, decodeDraft, type DraftKind } from './draftContract';
-import { DraftConflict, type DraftRepository } from './draftStorage';
+import { DraftConflict, type DraftRepository, type DraftWrite } from './draftStorage';
 
 export type DraftPhase = 'loading' | 'empty' | 'saving' | 'saved' | 'off' | 'error' | 'invalid' | 'conflict';
 export interface DraftSnapshot<T> { data: T; phase: DraftPhase; enabled: boolean; ready: boolean; updatedAt: number | null; message: string }
@@ -11,8 +11,11 @@ export class DraftController<T> {
   private base: string | null = null;
   private started = false;
   private running = false;
+  private reading = false;
+  private locked = false;
   private dirty = false;
   private version = 0;
+  private replacementVersion = 0;
   private blocked = false;
   private baseKnown = false;
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -24,14 +27,17 @@ export class DraftController<T> {
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private emit(patch: Partial<DraftSnapshot<T>>) { this.snapshot = { ...this.snapshot, ...patch }; this.listeners.forEach((listener) => listener()); }
   setNotifier(notify: () => void) { this.notifying = notify; }
-  hasUnsaved = () => this.running || this.dirty;
+  hasUnsaved = () => this.running || this.dirty || this.locked;
+  getVersion = () => this.version;
+  getReplacementVersion = () => this.replacementVersion;
   async init() {
     if (this.started) return;
     this.started = true;
     await this.reload();
   }
   async reload() {
-    if (this.running) return;
+    if (this.running || this.reading || this.locked) return;
+    this.reading = true;
     clearTimeout(this.saveTimer); this.saveTimer = undefined;
     this.emit({ phase: 'loading', ready: false, message: '' });
     try {
@@ -47,14 +53,15 @@ export class DraftController<T> {
     } catch {
       this.blocked = true;
       this.emit({ phase: 'error', message: 'Хранилище недоступно. Разрешите хранение данных сайта и повторите попытку.' });
-    }
+    } finally { this.reading = false; }
   }
   update = (update: (current: T) => T) => {
-    if (!this.snapshot.ready) return;
+    if (!this.snapshot.ready || this.locked) return;
     const next = update(this.snapshot.data);
+    this.version++;
     this.emit({ data: next });
     if (this.snapshot.enabled) {
-      this.dirty = true; this.version++;
+      this.dirty = true;
       if (!this.blocked) {
         // Coalesce typing without tying the timer to a component's lifetime.
         clearTimeout(this.saveTimer);
@@ -64,7 +71,7 @@ export class DraftController<T> {
     }
   };
   setEnabled = (enabled: boolean) => {
-    if (!this.snapshot.ready || this.blocked) return;
+    if (!this.snapshot.ready || this.blocked || this.locked) return;
     if (enabled && !this.baseKnown) {
       this.blocked = true;
       this.emit({ phase: 'conflict', message: 'Сначала выберите: загрузить прежний черновик или сохранить текущий вариант. Старые данные не будут перезаписаны без вашего решения.' });
@@ -73,41 +80,83 @@ export class DraftController<T> {
     this.emit({ enabled }); this.dirty = true; this.version++; void this.flush();
   };
   clear = () => {
+    if (this.locked) return;
     if (!this.snapshot.ready && this.snapshot.phase !== 'invalid') return;
-    if (!this.baseKnown) { this.emit({ data: this.empty() }); return; }
+    if (!this.baseKnown) { this.version++; this.emit({ data: this.empty() }); return; }
     this.blocked = false; this.dirty = true; this.version++;
     this.emit({ data: this.empty(), ready: true, message: '' });
     void this.flush();
   };
   retry = async () => {
+    if (this.locked) return;
     if (!this.snapshot.ready) { await this.reload(); return; }
     if (this.snapshot.phase === 'conflict' || this.snapshot.phase === 'invalid') return;
     this.blocked = false; await this.flush();
   };
   overwrite = async () => {
-    if (this.running || !this.snapshot.ready) return;
+    if (this.running || this.reading || this.locked || !this.snapshot.ready) return;
+    this.reading = true;
     this.emit({ phase: 'saving' });
     try { this.base = await this.repository.read(this.kind); this.baseKnown = true; }
     catch { this.emit({ phase: 'conflict', message: 'Не удалось открыть хранилище. Ваши правки пока только в памяти. Можно снова нажать «Сохранить мой вариант».' }); return; }
+    finally { this.reading = false; }
     this.emit({ enabled: true });
     this.blocked = false; this.dirty = true; this.version++; await this.flush();
   };
   continueInMemory = () => {
-    if (this.snapshot.ready || this.snapshot.phase !== 'error') return;
+    if (this.locked || this.snapshot.ready || this.snapshot.phase !== 'error') return;
+    this.version++;
     this.blocked = false; this.dirty = false;
     this.emit({ ready: true, enabled: false, phase: 'off', message: '' });
   };
   async checkExternal() {
-    if (!this.snapshot.ready || this.running || this.dirty) return;
+    if (!this.snapshot.ready || this.running || this.dirty || this.locked) return;
+    const base = this.base; const version = this.version;
     try {
-      if (await this.repository.read(this.kind) !== this.base) {
+      const raw = await this.repository.read(this.kind);
+      if (this.locked || this.running || this.dirty || base !== this.base || version !== this.version) return;
+      if (raw !== this.base) {
         this.blocked = true;
         this.emit({ phase: 'conflict', message: 'Черновик изменён или удалён в другой вкладке. Выберите, какую версию оставить.' });
       }
     } catch { /* A subsequent save still reports errors and uses the transaction's revision check. */ }
   }
+  // Reservations freeze both controllers synchronously before a single database transaction.
+  // No form state changes until BOTH records have committed. Release resumes queued autosaves.
+  reserveReplacement(data: T, expectedVersion: number) {
+    if (expectedVersion !== this.version) throw new Error('Работа изменилась после проверки файла. Отмените открытие и выберите файл снова.');
+    if (!this.snapshot.ready || this.running || this.reading || this.locked || this.blocked) {
+      throw new Error('Дождитесь сохранения обоих разделов и устраните ошибки или конфликт вкладок. Затем повторите открытие.');
+    }
+    if (!this.baseKnown && this.snapshot.enabled) throw new Error('Сначала восстановите доступ к локальному хранилищу.');
+    this.validate(data);
+    const raw = JSON.stringify({ schema: DRAFT_SCHEMA, kind: this.kind, revision: crypto.randomUUID(), updatedAt: Date.now(),
+      enabled: this.snapshot.enabled, data: this.snapshot.enabled ? data : this.empty() });
+    const record = decodeDraft<T>(raw, this.kind, this.validate);
+    const write: DraftWrite | null = this.baseKnown ? { key: this.kind, expected: this.base, next: raw } : null;
+    this.locked = true;
+    clearTimeout(this.saveTimer); this.saveTimer = undefined;
+    let committed = false;
+    return {
+      write,
+      commit: () => {
+        if (committed) return;
+        committed = true;
+        if (write) this.base = raw;
+        this.dirty = false; this.blocked = false; this.version++;
+        this.replacementVersion++;
+        this.snapshot = { ...this.snapshot, data, updatedAt: write ? record.updatedAt : null, message: '',
+          phase: !this.snapshot.enabled ? 'off' : JSON.stringify(data) === JSON.stringify(this.empty()) ? 'empty' : 'saved' };
+      },
+      publish: () => { this.listeners.forEach((listener) => listener()); if (write) this.notifying(); },
+      release: () => {
+        this.locked = false;
+        if (this.dirty && !this.blocked) this.saveTimer = setTimeout(() => { this.saveTimer = undefined; void this.flush(); }, 250);
+      },
+    };
+  }
   private async flush() {
-    if (this.running || !this.dirty || this.blocked) return;
+    if (this.running || !this.dirty || this.blocked || this.locked) return;
     clearTimeout(this.saveTimer); this.saveTimer = undefined;
     this.running = true;
     try {

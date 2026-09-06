@@ -11,6 +11,7 @@ import { DesktopUpdater } from './components/DesktopUpdater';
 import { BeatScenePlanner } from './components/BeatScenePlanner';
 import { DatasetLab } from './components/DatasetLab';
 import { MediaLibrary } from './components/MediaLibrary';
+import { ProjectFiles } from './components/ProjectFiles';
 import { MediaRequest, useDownloads } from './store/downloads';
 import { fetchInfo } from './api/media';
 
@@ -25,6 +26,7 @@ function readWorkspace(): Workspace {
 export default function App() {
   const [fetching, setFetching] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace>(readWorkspace);
+  const [projectGeneration, setProjectGeneration] = useState(0);
   const store = useDownloads();
 
   async function fetchItem(id: string, url: string) {
@@ -145,12 +147,13 @@ export default function App() {
       <DesktopUpdater />
 
       <main className={workspace === 'downloads' ? 'download-shell' : 'studio-shell'}>
+        {(workspace === 'intake' || workspace === 'beats') && <ProjectFiles onRestored={() => setProjectGeneration((value) => value + 1)} />}
         {workspace === 'library' && <MediaLibrary />}
         {workspace === 'studio' && <ReleaseStudio />}
-        {workspace === 'beats' && <BeatScenePlanner />}
+        {workspace === 'beats' && <BeatScenePlanner key={projectGeneration} />}
         {workspace === 'datasets' && <DatasetLab />}
         {workspace === 'edit' && <SafeLocalEdit />}
-        {workspace === 'intake' && <MediaIntake onPrepare={handlePrepare} />}
+        {workspace === 'intake' && <MediaIntake key={projectGeneration} onPrepare={handlePrepare} />}
         {workspace === 'downloads' && (
           <>
             <section className="download-hero" aria-labelledby="download-title">
