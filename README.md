@@ -1,13 +1,65 @@
-# ⚡ Eclipse Media
+# Eclipse Media
 
-> Self-hosted медиа-загрузчик | React 19 + TypeScript + FastAPI + yt-dlp
+![Eclipse Media: Источник → План → Медиа](docs/assets/repository-cover.svg)
 
-Планируй, проверяй и обрабатывай разрешённые медиаисточники локально: видео, аудио, транскрипты и release-ролики в одном понятном workflow.
+**Медиа-мастерская.** Планирование и обработка разрешённых медиаисточников: загрузки, субтитры, исследование и планы сцен.
 
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+<!-- repository-guide:start -->
+[Интерфейс](#readme-interface) · [Первый запуск](#readme-start) · [Что внутри](#readme-map) · [Путеводитель](docs/repository-guide.md#start) · [Карта кода](docs/repository-guide.md#map) · [Проверки](docs/repository-guide.md#checks) · [Границы и права](docs/repository-guide.md#boundaries)
+
+<a id="readme-interface"></a>
+
+## Интерфейс
+
+![Eclipse Media — Медиа-мастерская: ввод ссылки, выбор раздела и пустая очередь загрузок.](docs/assets/ui/overview.png)
+
+**Медиа-мастерская: ввод ссылки, выбор раздела и пустая очередь загрузок.**
+
+Локальный снимок от 8 сентября 2026: отдельный профиль браузера, без внешних API и пользовательских секретов. Это вид интерфейса, не подтверждение production-функций.
+
+<details>
+<summary><strong>Мобильный экран · 390 px</strong></summary>
+
+<img src="docs/assets/ui/mobile.png" alt="Eclipse Media — мобильный экран" width="390">
+
+</details>
+
+[Открыть в полном размере](docs/assets/ui/overview.png) · [Данные снимка](docs/assets/ui/capture.json)
+
+<a id="readme-map"></a>
+
+## Проект за минуту
+
+- **[Медиа-мастерская](<frontend/src>)** — Загрузка источников, проекты, планы и интерфейс обработки.
+- **[Локальный монтаж](<backend/local_edit_runtime.py>)** — Отдельный runtime работы с разрешённым исходным файлом.
+- **[Исследование и режиссура](<docs/local-research-direction.md>)** — Разбор субтитров и подготовка плана сцен.
+
+<a id="readme-start"></a>
+
+## Начать локально
+
+**Среда:** Node.js и npm. **Источник:** [frontend/package.json](<frontend/package.json>).
+
+Из корня клонированного репозитория:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Для загрузок нужен отдельный Python/FastAPI backend и FFmpeg; этот запуск открывает только интерфейс. Для полного Windows-сценария см. раздел нативного приложения ниже.
+
+<details>
+<summary><strong>Перед первым запуском и изменением кода</strong></summary>
+
+- Команды сверены с исходниками 8 сентября 2026. Это инструкция, а не отметка об успешном запуске или текущем production.
+- Установка зависимостей может обращаться в registry и выполнять lifecycle scripts. Используйте отдельную рабочую среду и демонстрационные данные.
+- До обработки фиксируются права на материал. Скачивание, AI-провайдеры, публикация и платные операции — разные действия.
+- [ROADMAP.md](<ROADMAP.md>)
+
+</details>
+<!-- repository-guide:end -->
 
 ## Возможности
 
@@ -240,7 +292,7 @@ npm run dev
 
 ## Лицензия
 
-[MIT](LICENSE)
+Файл `LICENSE`/`COPYING` в корне текущего checkout отсутствует. Условия распространения нужно уточнить у владельца до переиспользования; этим обновлением новая лицензия не назначается.
 
 ---
 

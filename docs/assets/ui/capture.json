@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "project": "eclipse-media",
+  "capturedAt": "2026-09-08T09:48:39.657Z",
+  "caption": "Медиа-мастерская: ввод ссылки, выбор раздела и пустая очередь загрузок.",
+  "method": "isolated-local-source-preview",
+  "context": "Local source preview, clean browser storage, reduced motion, no .env, external resources and backend APIs blocked. Repository content only, no additional fixtures or personal history; no production verification.",
+  "sourceHead": "72631d0a53926e05217e87c4d5b6de8ad04bd568",
+  "sourceWorktreeDirty": true,
+  "entryFiles": [
+    {
+      "file": "frontend/index.html",
+      "sha256": "b0dfd2e5231fc3879725888f2330edbe8f4849167937ff1b6f38c0615b32a833"
+    },
+    {
+      "file": "frontend/package.json",
+      "sha256": "601c5407bea8011c92e1b513d34f17a14877978084699194d3da5cc295d6ef46"
+    },
+    {
+      "file": "frontend/src/main.tsx",
+      "sha256": "9215c75c817895f2a1c100e2b7eccbca1b2e4d06ca78388ed5fb1432cbccb8bc"
+    }
+  ],
+  "screenshots": [
+    {
+      "kind": "overview",
+      "file": "overview.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "62922ede0ca796296c8c521afcf8092236b9d56d52d193af01e2ef4086e58f38",
+      "bytes": 279452
+    },
+    {
+      "kind": "mobile",
+      "file": "mobile.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "1d3922dd2d9e1639af27350847657e8b5333dd33c48a035f9cc743e8a4fc7f31",
+      "bytes": 134499
+    }
+  ],
+  "review": "Desktop and selected mobile captures visually reviewed before documentation use."
+}
