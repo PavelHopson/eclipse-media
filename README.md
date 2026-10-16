@@ -1,5 +1,9 @@
 # Eclipse Media
 
+<!-- project-links:start -->
+[Документация](docs/repository-guide.md) · [Код](https://github.com/PavelHopson/eclipse-media/tree/master) · [История изменений](https://github.com/PavelHopson/eclipse-media/commits/master/)
+<!-- project-links:end -->
+
 ![Eclipse Media: Источник → План → Медиа](docs/assets/repository-cover.svg)
 
 **Медиа-мастерская.** Планирование и обработка разрешённых медиаисточников: загрузки, субтитры, исследование и планы сцен.
@@ -92,7 +96,9 @@ timeout/cancel, повторная проверка результата и со
 пути, URL или FFmpeg arguments. Публичный web-production остаётся preview-only; реальный экспорт
 включает только Tauri sidecar с действующим desktop session token.
 
-## Product radar
+<a id="product-radar"></a>
+
+## Источники и идеи развития
 
 Источник: [Eclipse Library · July 2026 project integration](https://library.eclipse-forge.ru/#guide/july-2026-project-integration).
 
@@ -108,7 +114,9 @@ timeout/cancel, повторная проверка результата и со
 | **Reiverr** | Только clean-room product reference для единой очереди discover/request/watch. AGPL-код не копируется в MIT-проект |
 | **Torlink** | Только reference для CLI UX, очередей загрузки и source health-check. Не превращать Eclipse Media в публичный downloader "любых файлов"; тестировать только legal/open-data сценарии |
 
-## Media Intake
+<a id="media-intake"></a>
+
+## Приём медиаматериалов
 
 Открой раздел **«План»** и выбери ожидаемый результат: посмотреть источник, скачать видео,
 извлечь аудио или получить транскрипт. Добавь проект и короткую заметку — задача сохранится
@@ -134,7 +142,9 @@ Remote runtime components `yt-dlp` выключены по умолчанию. �
 автоматическое обновление backend намеренно отсутствуют. Сравнение с Cube YouTube Downloader и
 bounded план playlists: [`docs/youtube-dl-wpf-gap-analysis.md`](docs/youtube-dl-wpf-gap-analysis.md).
 
-## Release-video pipeline
+<a id="release-video-pipeline"></a>
+
+## Подготовка видео для выпуска
 
 Открой в приложении раздел **«Видео-студия»**. Основной путь виден сразу:
 
@@ -164,7 +174,9 @@ SHA-384 SRI проверяются offline, а байты сверены с оф
 отдельную GreenSock “no charge” license (не MIT/Apache); copyright header сохранён.
 
 
-## MiniMax Music 3 benchmark
+<a id="minimax-music-3-benchmark"></a>
+
+## Сравнение с MiniMax Music 3
 
 Eclipse Media now has a reproducible, dry-run-first benchmark plan in
 backend/minimax_music3_benchmark.py. It does not download the model, execute remote code,
@@ -299,7 +311,9 @@ npm run dev
 <div align="center">
 <sub>Сделано в Eclipse Forge</sub>
 </div>
-## Eclipse Forge visual contract
+<a id="eclipse-forge-visual-contract"></a>
+
+## Визуальный стандарт Eclipse Forge
 
 Eclipse Media uses the local `eclipse-forge.visual-system.v1` snapshot in the `product` profile: self-hosted Outfit/Inter, signal-blue actions, warm-gold highlights, subtle grid depth and reduced-motion-safe transitions. Operational rights gates and queue states remain visually dominant over decoration.
 
