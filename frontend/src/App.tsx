@@ -13,12 +13,14 @@ import { DatasetLab } from './components/DatasetLab';
 import { MediaLibrary } from './components/MediaLibrary';
 import { ProjectFiles } from './components/ProjectFiles';
 import { StoryboardPlanner } from './components/StoryboardPlanner';
+import { InteractiveBookPilot } from './components/InteractiveBookPilot';
+import { PresentationBriefPilot } from './components/PresentationBriefPilot';
 import type { StoryScene } from './services/projectStoryboardContract';
 import { useProjects } from './hooks/useLocalDraft';
 import { MediaRequest, useDownloads } from './store/downloads';
 import { fetchInfo } from './api/media';
 
-const WORKSPACES = ['downloads', 'library', 'intake', 'beats', 'storyboard', 'datasets', 'studio', 'edit'] as const;
+const WORKSPACES = ['downloads', 'library', 'intake', 'beats', 'storyboard', 'webbook', 'presentation', 'datasets', 'studio', 'edit'] as const;
 type Workspace = typeof WORKSPACES[number];
 
 function readWorkspace(): Workspace {
@@ -98,6 +100,10 @@ export default function App() {
         ? 'Локальный анализ'
         : workspace === 'storyboard'
           ? 'Сценарий проекта'
+        : workspace === 'webbook'
+          ? 'Локальный пилот'
+        : workspace === 'presentation'
+          ? 'Brief до дизайна'
         : workspace === 'datasets'
           ? 'Без запуска обучения'
         : workspace === 'edit'
@@ -135,6 +141,8 @@ export default function App() {
             ['intake', 'План'],
             ['beats', 'Бит-карта'],
             ['storyboard', 'Сценарий'],
+            ['webbook', 'Веб-книга'],
+            ['presentation', 'Презентация'],
             ['datasets', 'Датасеты'],
             ['studio', 'Видео-студия'],
             ['edit', 'Безопасный монтаж'],
@@ -162,6 +170,8 @@ export default function App() {
         {workspace === 'studio' && <ReleaseStudio />}
         {workspace === 'beats' && projects.phase !== 'loading' && <div inert={projectLocked}><BeatScenePlanner key={projectGeneration} /></div>}
         {workspace === 'storyboard' && projects.phase !== 'loading' && <div inert={projectLocked}><StoryboardPlanner key={projectGeneration} onEdit={(scene) => { setEditProjectId(projects.activeId); setEditScene(structuredClone(scene)); selectWorkspace('edit'); }} /></div>}
+        {workspace === 'webbook' && <InteractiveBookPilot />}
+        {workspace === 'presentation' && <PresentationBriefPilot />}
         {workspace === 'datasets' && <DatasetLab />}
         {workspace === 'edit' && <SafeLocalEdit key={editProjectId === projects.activeId ? editScene?.id ?? 'standalone' : 'standalone'} scene={editProjectId === projects.activeId ? editScene : undefined} onBack={() => selectWorkspace('storyboard')} />}
         {workspace === 'intake' && projects.phase !== 'loading' && <div inert={projectLocked}><MediaIntake key={projectGeneration} onPrepare={handlePrepare} /></div>}

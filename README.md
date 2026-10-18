@@ -7,7 +7,6 @@
 ![Eclipse Media: Источник → План → Медиа](docs/assets/repository-cover.svg)
 
 **Медиа-мастерская.** Планирование и обработка разрешённых медиаисточников: загрузки, субтитры, исследование и планы сцен.
-
 <!-- repository-guide:start -->
 [Интерфейс](#readme-interface) · [Первый запуск](#readme-start) · [Что внутри](#readme-map) · [Путеводитель](docs/repository-guide.md#start) · [Карта кода](docs/repository-guide.md#map) · [Проверки](docs/repository-guide.md#checks) · [Границы и права](docs/repository-guide.md#boundaries)
 

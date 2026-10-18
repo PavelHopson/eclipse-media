@@ -1,4 +1,9 @@
 .storyboard { color: var(--text); }
+.storyboard-template { border-block: 1px solid var(--border); margin-block: 18px; padding: 8px 0; }
+.storyboard-template > summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-size: 14px; }
+.storyboard-template .planning-field { flex: 1 1 240px; min-width: 0; }
+.storyboard-template input { width: 100%; }
+.storyboard-template button:active:not(:disabled) { filter: brightness(.92); }
 .storyboard .planning-toolbar { margin-block: 14px; }
 .storyboard button { min-height: 42px; padding: 9px 14px; border: 1px solid var(--border-hover); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
 .storyboard button:hover:not(:disabled) { background: var(--surface2); }
@@ -32,3 +37,5 @@
 .story-handoff p { color: var(--text-secondary); font-size: 13px; line-height: 1.7; margin: 6px 0; }
 .safe-edit__video { width: 100%; max-height: 420px; background: #000; margin-block: 16px; }
 @media (max-width: 600px) { .story-scene__fields { grid-template-columns: minmax(0, 1fr); } .story-scene__heading { align-items: flex-start; flex-direction: column; gap: 8px; } .story-scene__actions button { flex: 1 1 120px; } }
+.hook-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.hook-options{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.hook-options button[aria-pressed=true]{outline:2px solid currentColor;outline-offset:2px}.hook-editor{display:grid;gap:12px;margin:16px 0}.hook-editor h2{font-size:1rem}.hook-review{display:flex;align-items:center;gap:8px}.hook-review input{width:auto}.short-video-hooks button{min-height:44px}.short-video-hooks textarea,.short-video-hooks input{max-width:100%;min-width:0}.hook-options button{white-space:normal;text-align:left}@media(max-width:600px){.hook-fields{grid-template-columns:1fr}}
+.short-video-hooks{border-block:1px solid var(--border);margin-block:18px;padding:8px 0}.short-video-hooks>summary{min-height:44px;padding-block:12px;cursor:pointer;font-size:14px}
