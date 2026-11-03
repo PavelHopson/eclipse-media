@@ -169,6 +169,22 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 1100px) {
+  .app-header { width: 100%; min-width: 0; flex-wrap: wrap; }
+  .app-header > .workspace-switch {
+    order: 3;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 4px 0 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .app-header > .workspace-switch::-webkit-scrollbar { display: none; }
+  .app-header > .workspace-switch .workspace-switch__item { flex: 0 0 auto; }
+  .app-header > .header-status { display: none; }
+}
+
 @media (max-width: 840px) {
   .header-status { display: none; }
   .workspace-switch { margin-left: auto; }
