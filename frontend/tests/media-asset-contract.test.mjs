@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MEDIA_ASSET_SCHEMA, parseMediaAssetJson } from "../src/services/mediaAssetContract.ts";
+import { MEDIA_ASSET_SCHEMA, parseMediaAssetJson, validateLocalImageFile } from "../src/services/mediaAssetContract.ts";
 
 function fixture() {
   return {
@@ -30,4 +30,11 @@ test("rejects URLs, paths, unknown fields and missing approval", () => {
   assert.throws(() => parseMediaAssetJson(JSON.stringify({ ...fixture(), remoteUrl: "https://example.com/a.png" })), /unknown fields/);
   assert.throws(() => parseMediaAssetJson(JSON.stringify({ ...fixture(), asset: { ...fixture().asset, fileName: "../a.png" } })), /local image filename/);
   assert.throws(() => parseMediaAssetJson(JSON.stringify({ ...fixture(), asset: { ...fixture().asset, approvalRequired: false } })), /manual rights approval/);
+});
+
+test("matches a local image by exact passport filename and mime type", () => {
+  const parsed = parseMediaAssetJson(JSON.stringify(fixture()));
+  assert.doesNotThrow(() => validateLocalImageFile({ name: "text2image-safe.png", type: "image/png" }, parsed));
+  assert.throws(() => validateLocalImageFile({ name: "other.png", type: "image/png" }, parsed), /text2image-safe.png/);
+  assert.throws(() => validateLocalImageFile({ name: "text2image-safe.png", type: "image/webp" }, parsed), /image\/png/);
 });

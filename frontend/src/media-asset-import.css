@@ -38,8 +38,14 @@
 .media-asset-import__approval { margin-bottom: 0; color: #ffd480 !important; }
 .media-asset-import__error { color: #ff8b8b !important; }
 .media-asset-import__status { font-size: 0.82rem; }
+.media-asset-import__match { display: grid; grid-template-columns: minmax(0, 1fr) 7rem; gap: 1rem; align-items: start; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.media-asset-import__match p { margin: 0.35rem 0 0; font-size: 0.82rem; }
+.media-asset-import__image { width: 7rem; height: 7rem; object-fit: cover; border: 1px solid rgba(129, 176, 255, 0.38); background: #05070c; }
+.media-asset-import__consent { display: flex; gap: 0.55rem; align-items: start; margin-top: 1rem; color: var(--text-muted); font-size: 0.82rem; line-height: 1.45; }
+.media-asset-import__consent input { margin-top: 0.2rem; accent-color: var(--accent); }
 @media (max-width: 760px) {
   .media-asset-import { grid-template-columns: 1fr; padding: 1rem; }
   .media-asset-import dl { grid-template-columns: 1fr; }
   .media-asset-import__heading { flex-direction: column; }
+  .media-asset-import__match { grid-template-columns: 1fr; }
 }

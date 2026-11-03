@@ -19,6 +19,11 @@ export type MediaAssetSidecar = {
   };
 };
 
+export type LocalImageFileLike = {
+  name: string;
+  type: string;
+};
+
 const EXACT_ASSET_KEYS = [
   "kind", "fileName", "mimeType", "prompt", "enhancedPrompt", "style", "aspectRatio",
   "provider", "model", "createdAt", "rightsStatus", "approvalRequired",
@@ -95,4 +100,13 @@ export function parseMediaAssetJson(raw: string): MediaAssetSidecar {
       approvalRequired: true,
     },
   };
+}
+
+export function validateLocalImageFile(file: LocalImageFileLike, sidecar: MediaAssetSidecar): void {
+  if (file.name !== sidecar.asset.fileName) {
+    throw new Error(`Выберите файл «${sidecar.asset.fileName}».`);
+  }
+  if (file.type && file.type !== sidecar.asset.mimeType) {
+    throw new Error(`Ожидается формат ${sidecar.asset.mimeType}.`);
+  }
 }

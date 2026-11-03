@@ -1,14 +1,24 @@
-import { useState } from "react";
-import { parseMediaAssetJson, type MediaAssetSidecar } from "../services/mediaAssetContract";
+import { useEffect, useMemo, useState } from "react";
+import { parseMediaAssetJson, validateLocalImageFile, type MediaAssetSidecar } from "../services/mediaAssetContract";
 import "../media-asset-import.css";
 
 export function MediaAssetImport() {
   const [sidecar, setSidecar] = useState<MediaAssetSidecar | null>(null);
   const [error, setError] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
+
+  const imagePreviewUrl = useMemo(() => imageFile ? URL.createObjectURL(imageFile) : "", [imageFile]);
+
+  useEffect(() => {
+    return () => { if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl); };
+  }, [imagePreviewUrl]);
 
   async function importFile(file: File | undefined) {
     if (!file) return;
     setSidecar(null);
+    setImageFile(null);
+    setRightsConfirmed(false);
     setError("");
     try {
       if (file.size > 32 * 1024) throw new Error("Media Asset exceeds 32 KB.");
@@ -16,6 +26,19 @@ export function MediaAssetImport() {
       setSidecar(parseMediaAssetJson(await file.text()));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Media Asset validation failed.");
+    }
+  }
+
+  function importImage(file: File | undefined) {
+    if (!file || !sidecar) return;
+    setError("");
+    setImageFile(null);
+    setRightsConfirmed(false);
+    try {
+      validateLocalImageFile(file, sidecar);
+      setImageFile(file);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Не удалось сопоставить локальное изображение.");
     }
   }
 
@@ -50,7 +73,24 @@ export function MediaAssetImport() {
               <div><dt>Style</dt><dd>{sidecar.asset.style}</dd></div>
             </dl>
             <p className="media-asset-import__prompt">{sidecar.asset.prompt}</p>
-            <p className="media-asset-import__approval">Next step: choose the matching local image manually and confirm provider rights before render.</p>
+            <div className="media-asset-import__match">
+              <div>
+                <strong>1. Выберите локальное изображение</strong>
+                <p>Файл не загружается и не отправляется в сеть. Имя и формат должны совпасть с паспортом.</p>
+                <label className="media-asset-import__file">
+                  <span>{imageFile ? "Выбрать другой файл" : "Выбрать изображение"}</span>
+                  <input type="file" accept={sidecar.asset.mimeType} onChange={(event) => importImage(event.target.files?.[0])} />
+                </label>
+              </div>
+              {imagePreviewUrl && <img className="media-asset-import__image" src={imagePreviewUrl} alt={`Локальный файл ${sidecar.asset.fileName}`} />}
+            </div>
+            <label className="media-asset-import__consent">
+              <input type="checkbox" checked={rightsConfirmed} disabled={!imageFile} onChange={(event) => setRightsConfirmed(event.target.checked)} />
+              <span>Я проверил права на этот файл и могу использовать его в проекте</span>
+            </label>
+            <p className="media-asset-import__approval" role="status">
+              {!imageFile ? "Следующий шаг: выберите совпадающий локальный файл." : !rightsConfirmed ? "Файл сопоставлен. Подтвердите права перед передачей в проект." : "Файл сопоставлен, права подтверждены. Генерация, монтаж и публикация не запускаются автоматически."}
+            </p>
           </>
         )}
       </div>
