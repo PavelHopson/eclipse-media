@@ -8,6 +8,9 @@ import { appendStoryboardBatch, canUndoStoryboardBatch, createProductStoryboard,
 import '../storyboard.css';
 import { ShortVideoHooks } from './ShortVideoHooks';
 import { prependHook, undoHook } from '../services/shortVideoHooks';
+import { VideoAdPlanImport } from './VideoAdPlanImport';
+import { appendVideoAdStoryboard, canUndoVideoAdStoryboard, createVideoAdStoryboard, undoVideoAdStoryboard } from '../services/videoAdStoryboard';
+import type { VideoAdPlan } from '../services/videoAdPlanContract';
 
 function sourceLink(url: string, start: number) { try { return cueLink(youtubeVideoId(url), start); } catch { return null; } }
 const displayCueTime = (seconds: number) => formatEditTime(Math.round(seconds * 1000));
@@ -19,6 +22,8 @@ export function StoryboardPlanner({ onEdit }: { onEdit: (scene: StoryScene) => v
   const [linkCue, setLinkCue] = useState<Record<string, string>>({});
   const [templateName, setTemplateName] = useState('Eclipse Library');
   const [templateBatch, setTemplateBatch] = useState<{ controller: typeof controller; scenes: StoryScene[] } | null>(null);
+  const [adBatch, setAdBatch] = useState<StoryScene[] | null>(null);
+  const [importRevision, setImportRevision] = useState(0);
   const scenes = draft.data.storyboard?.scenes ?? [];
   const blocked = !draft.ready || !research.ready || ['error', 'conflict', 'invalid'].includes(draft.phase);
   function update(change: (current: StoryScene[]) => StoryScene[], message = '') {
@@ -28,6 +33,19 @@ export function StoryboardPlanner({ onEdit }: { onEdit: (scene: StoryScene) => v
     }); setStatus(message); return true; } catch (caught) { setError((caught as Error).message); return false; }
   }
   function revise(id: string, patch: Partial<StoryScene>) { update((items) => items.map((s) => s.id === id ? { ...s, ...patch } : s)); }
+  function addAdPlan(plan: VideoAdPlan) {
+    const snapshot = controller.getSnapshot();
+    if (!snapshot.ready || ['error', 'conflict', 'invalid'].includes(snapshot.phase)) throw new Error('Сначала устраните ошибку хранения или конфликт проекта.');
+    const batch = createVideoAdStoryboard(plan);
+    let applied = false;
+    controller.update(current => {
+      const next = appendVideoAdStoryboard(current.storyboard?.scenes ?? [], plan, batch);
+      applied = true;
+      return { ...current, storyboard: { scenes: next } };
+    });
+    if (!applied) throw new Error('Проект занят. Подождите и повторите добавление.');
+    setAdBatch(batch); setError(''); setStatus('');
+  }
   function move(index: number, direction: number) { update((items) => { const next = [...items]; [next[index], next[index + direction]] = [next[index + direction], next[index]]; return next; }, 'Порядок сцен изменён.'); }
   function addFromBeats() {
     const beats = draft.data.project; if (!beats) return;
@@ -37,7 +55,7 @@ export function StoryboardPlanner({ onEdit }: { onEdit: (scene: StoryScene) => v
   }
   return <section className="storyboard" aria-labelledby="storyboard-title">
     <header className="planning-heading"><h1 id="storyboard-title">Сценарий проекта</h1><p>Соберите порядок сцен, свяжите тезисы и подготовьте каждый клип к монтажу.</p></header>
-    <DraftStatus controller={controller} snapshot={draft} onClear={() => { setRemoved(null); setTemplateBatch(null); setStatus(''); }} />
+    <DraftStatus controller={controller} snapshot={draft} onClear={() => { setRemoved(null); setTemplateBatch(null); setAdBatch(null); setImportRevision(value => value + 1); setStatus(''); }} />
     <p className="planning-muted">Сценарий и бит-карта используют общее автосохранение. «Удалить черновик» очистит оба раздела.</p>
     <fieldset className="draft-form" disabled={blocked}><legend className="sr-only">Редактор сценария</legend>
       <div className="planning-toolbar"><button className="planning-primary" type="button" disabled={scenes.length >= MAX_STORY_SCENES} onClick={() => update((items) => [...items, newStoryScene()], 'Новая сцена добавлена.')}>Добавить сцену</button>
@@ -60,6 +78,15 @@ export function StoryboardPlanner({ onEdit }: { onEdit: (scene: StoryScene) => v
         {scenes.length + 4 > MAX_STORY_SCENES && <p className="planning-muted">Нужно четыре свободных места. Сейчас доступно: {MAX_STORY_SCENES - scenes.length}.</p>}
         {templateBatch?.controller === controller && !canUndoStoryboardBatch(scenes, templateBatch.scenes) && <p className="planning-muted">Сцены шаблона изменены или убраны. Ваши правки сохраняются; удалить сцены можно по одной.</p>}
       </details>
+      <details className="storyboard-template ad-plan-section"><summary>Импорт плана Shotforge</summary>
+        <VideoAdPlanImport key={controller.storageKey + ':' + importRevision + ':' + controller.getReplacementVersion()} scenes={scenes} disabled={blocked} onUse={addAdPlan} />
+        {adBatch && <div className="ad-plan-undo">
+          <button type="button" disabled={!canUndoVideoAdStoryboard(scenes, adBatch)} onClick={() => {
+            if (update(items => undoVideoAdStoryboard(items, adBatch), 'Добавление плана отменено. Остальные сцены сохранены.')) { setAdBatch(null); setImportRevision(value => value + 1); }
+          }}>Отменить добавление плана</button>
+          {!canUndoVideoAdStoryboard(scenes, adBatch) && <p className="planning-muted">Сцены уже изменены или убраны. Ваши правки сохраняются; убрать сцены можно по одной.</p>}
+        </div>}
+      </details>
       {status && <p role="status" className="planning-status">{status}</p>}{error && <p role="alert" className="planning-error">{error}</p>}
       {removed && <div className="planning-toolbar"><span>Сцена «{removed.scene.title || 'Без названия'}» убрана.</span><button type="button" disabled={scenes.length >= MAX_STORY_SCENES} onClick={() => { update((items) => { const next = [...items]; next.splice(Math.min(removed.index, next.length), 0, removed.scene); return next; }, 'Сцена восстановлена.'); setRemoved(null); }}>Вернуть сцену</button></div>}
       {!scenes.length && <div className="planning-empty"><h2>Сценарий пока пуст</h2><p>Добавьте сцену здесь или нажмите «Создать сцену» рядом с тезисом в разделе «План».</p></div>}
@@ -74,6 +101,11 @@ export function StoryboardPlanner({ onEdit }: { onEdit: (scene: StoryScene) => v
             <label className="planning-field"><span>Действие в кадре</span><textarea maxLength={400} rows={2} value={scene.action} aria-invalid={!scene.action.trim()} onChange={(e) => revise(scene.id, { action: e.target.value })} /></label>
             <label className="planning-field"><span>Камера</span><textarea maxLength={400} rows={2} value={scene.camera} aria-invalid={!scene.camera.trim()} onChange={(e) => revise(scene.id, { camera: e.target.value })} /></label>
           </div>
+          {scene.sourcePlan && <details className="ad-plan-source"><summary>Из плана «{scene.sourcePlan.planTitle}» · {scene.sourcePlan.format}</summary>
+            <p>План: {scene.sourcePlan.planId} · Доска: {scene.sourcePlan.referenceBoardId} · Сцена: {scene.sourcePlan.sceneId}</p>
+            <p>Референсы: {scene.sourcePlan.referenceIds.length ? scene.sourcePlan.referenceIds.join(', ') : 'не указаны'}</p>
+            <p>Это сведения из исходного файла, без самих материалов. Формат сохранён как ориентир; перед публикацией проверьте утверждения и готовое видео.</p>
+          </details>}
           <div className="story-theses"><h3>Связанные тезисы <small>{scene.theses.length} / 4</small></h3>
             {!scene.theses.length && <p>Связанных тезисов нет. Для самостоятельной сцены это необязательно.</p>}
             {scene.theses.map((t, i) => { const link = sourceLink(t.videoUrl, t.start); return <div key={t.sha256 + t.cueId} className="story-thesis">

@@ -4,8 +4,14 @@ export interface ThesisSnapshot {
   fileName: string; sha256: string; cueId: string; start: number; end: number; excerpt: string;
   claim: string; status: 'unverified' | 'confirmed' | 'disputed'; evidenceUrl: string; videoUrl: string;
 }
+export interface StorySceneSourcePlan {
+  schemaVersion: 'eclipse.video-ad-plan.v1'; planId: string; planTitle: string; referenceBoardId: string;
+  sceneId: 'hook' | 'proof' | 'action'; referenceIds: string[]; format: '16:9' | '9:16' | '1:1';
+  claimsRequireReview: true; publishRequiresApproval: true;
+}
 export interface StoryScene {
   id: string; title: string; duration: number; music: string; action: string; camera: string; theses: ThesisSnapshot[];
+  sourcePlan?: StorySceneSourcePlan;
 }
 export interface Storyboard { scenes: StoryScene[] }
 export const MAX_STORY_SCENES = 24;
@@ -20,15 +26,32 @@ function text(value: unknown, max: number) {
   check(typeof value === 'string' && value.length <= max);
   check(![...value].some((c) => { const n = c.charCodeAt(0); return (n < 32 && ![9, 10, 13].includes(n)) || n === 127 || (n >= 0x202a && n <= 0x202e) || (n >= 0x2066 && n <= 0x2069); }));
 }
+function sourceText(value: unknown, max: number) {
+  text(value, max);
+  check(typeof value === 'string' && value.trim().length > 0 && ![...value].some((c) => {
+    const n = c.charCodeAt(0); return n < 32 || (n >= 127 && n <= 159);
+  }));
+}
+function validateSourcePlan(value: unknown) {
+  const source = obj(value, ['schemaVersion', 'planId', 'planTitle', 'referenceBoardId', 'sceneId', 'referenceIds', 'format', 'claimsRequireReview', 'publishRequiresApproval']);
+  check(source.schemaVersion === 'eclipse.video-ad-plan.v1');
+  sourceText(source.planId, 80); sourceText(source.planTitle, 90); sourceText(source.referenceBoardId, 80);
+  check(['hook', 'proof', 'action'].includes(source.sceneId as string) && ['16:9', '9:16', '1:1'].includes(source.format as string));
+  check(source.claimsRequireReview === true && source.publishRequiresApproval === true);
+  check(Array.isArray(source.referenceIds) && source.referenceIds.length <= 24);
+  for (const reference of source.referenceIds) sourceText(reference, 80);
+}
 export function validateStoryboard(value: unknown): asserts value is Storyboard {
   const board = obj(value, ['scenes']); check(Array.isArray(board.scenes) && board.scenes.length <= MAX_STORY_SCENES);
   const ids = new Set<string>();
   for (const value of board.scenes) {
-    const scene = obj(value, ['id', 'title', 'duration', 'music', 'action', 'camera', 'theses']);
+    const hasSourcePlan = !!value && typeof value === 'object' && Object.hasOwn(value, 'sourcePlan');
+    const scene = obj(value, ['id', 'title', 'duration', 'music', 'action', 'camera', 'theses', ...(hasSourcePlan ? ['sourcePlan'] : [])]);
     check(typeof scene.id === 'string' && UUID.test(scene.id) && !ids.has(scene.id)); ids.add(scene.id);
     text(scene.title, 80); text(scene.music, 512); text(scene.action, 400); text(scene.camera, 400);
     check(typeof scene.duration === 'number' && Number.isFinite(scene.duration) && scene.duration >= 0 && scene.duration <= 60);
     check(Array.isArray(scene.theses) && scene.theses.length <= 4);
+    if (hasSourcePlan) validateSourcePlan(scene.sourcePlan);
     const sources = new Set<string>();
     for (const value of scene.theses) {
       const t = obj(value, ['fileName', 'sha256', 'cueId', 'start', 'end', 'excerpt', 'claim', 'status', 'evidenceUrl', 'videoUrl']);

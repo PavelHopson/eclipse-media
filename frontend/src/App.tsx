@@ -167,7 +167,7 @@ export default function App() {
       <main className={workspace === 'downloads' ? 'download-shell' : 'studio-shell'}>
         {(['intake', 'beats', 'storyboard'].includes(workspace)) && <ProjectFiles />}
         {workspace === 'library' && <MediaLibrary />}
-        {workspace === 'studio' && <ReleaseStudio />}
+        {workspace === 'studio' && <ReleaseStudio onOpenStoryboard={() => selectWorkspace('storyboard')} />}
         {workspace === 'beats' && projects.phase !== 'loading' && <div inert={projectLocked}><BeatScenePlanner key={projectGeneration} /></div>}
         {workspace === 'storyboard' && projects.phase !== 'loading' && <div inert={projectLocked}><StoryboardPlanner key={projectGeneration} onEdit={(scene) => { setEditProjectId(projects.activeId); setEditScene(structuredClone(scene)); selectWorkspace('edit'); }} /></div>}
         {workspace === 'webbook' && <InteractiveBookPilot />}

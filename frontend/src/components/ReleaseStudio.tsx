@@ -3,7 +3,6 @@ import { StoryboardImport } from './StoryboardImport';
 import { ReleaseBriefEditor } from './ReleaseBriefEditor';
 import { MediaAssetImport } from './MediaAssetImport';
 import { CreatorKitPanel } from './CreatorKitPanel';
-import { VideoAdPlanImport } from './VideoAdPlanImport';
 import {
   createDefaultReleaseBrief,
   createReleaseBriefFromStoryboard,
@@ -39,7 +38,7 @@ function PlayIcon() {
   );
 }
 
-export function ReleaseStudio() {
+export function ReleaseStudio({ onOpenStoryboard }: { onOpenStoryboard: () => void }) {
   const [copied, setCopied] = useState<string | null>(null);
   const [format, setFormat] = useState<ReleaseFormat>('landscape');
   const [brief, setBrief] = useState(() => createDefaultReleaseBrief());
@@ -195,7 +194,7 @@ export function ReleaseStudio() {
       <StoryboardImport onUseInBrief={useStoryboard} />
       <ReleaseBriefEditor key={briefRevision} draft={brief} onChange={setBrief} />
       <MediaAssetImport />
-      <VideoAdPlanImport />
+      <div className="story-handoff"><h2>План из Shotforge</h2><p>В сценарии откройте «Импорт плана Shotforge». Три сцены, формат и номера референсов сохранятся вместе с вашими правками.</p><button type="button" className="btn-primary" onClick={onOpenStoryboard}>Перейти к сценарию</button></div>
       <CreatorKitPanel />
 
 

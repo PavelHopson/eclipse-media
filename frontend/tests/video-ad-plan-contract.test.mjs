@@ -9,6 +9,6 @@ test('accepts deterministic preview plan and keeps publication gated', () => {
 });
 test('rejects unknown fields and incomplete approval', () => {
   const changed = JSON.parse(JSON.stringify(plan)); changed.plan.publishRequiresApproval = false;
-  assert.throws(() => parseVideoAdPlan(JSON.stringify(changed)), /safety/i);
-  assert.throws(() => approveVideoAdPreview(parseVideoAdPlan(JSON.stringify(plan)), { referencesMatched: true, claimsReviewed: false, noSensitiveData: true }), /manual preview/i);
+  assert.throws(() => parseVideoAdPlan(JSON.stringify(changed)), /требования проверки/);
+  assert.throws(() => approveVideoAdPreview(parseVideoAdPlan(JSON.stringify(plan)), { referencesMatched: true, claimsReviewed: false, noSensitiveData: true }), /все три проверки/);
 });

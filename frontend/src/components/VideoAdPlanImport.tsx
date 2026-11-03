@@ -1,61 +1,75 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { approveVideoAdPreview, parseVideoAdPlan, type VideoAdPlan } from '../services/videoAdPlanContract';
-import '../storyboard-import.css';
+import { videoAdImportProblem, VIDEO_AD_SCENE_LABELS } from '../services/videoAdStoryboard';
+import type { StoryScene } from '../services/projectStoryboardContract';
 
-export function VideoAdPlanImport() {
+const emptyChecks = { referencesMatched: false, claimsReviewed: false, noSensitiveData: false };
+
+export function VideoAdPlanImport({ scenes, disabled, onUse }: {
+  scenes: StoryScene[]; disabled: boolean; onUse: (plan: VideoAdPlan) => void;
+}) {
   const [plan, setPlan] = useState<VideoAdPlan | null>(null);
-  const [state, setState] = useState<'empty' | 'loading' | 'ready' | 'error' | 'approved'>('empty');
-  const [message, setMessage] = useState('Выберите Video Ad Plan JSON из Shotforge.');
-  const [checks, setChecks] = useState({ referencesMatched: false, claimsReviewed: false, noSensitiveData: false });
+  const [state, setState] = useState<'empty' | 'loading' | 'ready' | 'error' | 'added'>('empty');
+  const [message, setMessage] = useState('');
+  const [checks, setChecks] = useState(emptyChecks);
+  const [fileName, setFileName] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  const request = useRef(0);
+  useEffect(() => () => { request.current++; }, []);
   const allChecked = checks.referencesMatched && checks.claimsReviewed && checks.noSensitiveData;
+  const problem = plan ? videoAdImportProblem(scenes, plan) : null;
 
-  const importFile = async (file: File | undefined) => {
-    if (!file) return;
-    setState('loading'); setMessage('Проверяем timeline и safety gates локально…'); setPlan(null);
-    setChecks({ referencesMatched: false, claimsReviewed: false, noSensitiveData: false });
+  async function importFile(file: File) {
+    const id = ++request.current;
+    setState('loading'); setMessage('Читаем план…'); setPlan(null); setChecks(emptyChecks); setFileName(file.name);
     try {
-      if (file.size > 64 * 1024) throw new Error('Video ad plan exceeds 64 KB.');
-      const parsed = parseVideoAdPlan(await file.text()); setPlan(parsed); setState('ready');
-      setMessage('План проверен. Просмотрите сцены и выполните три ручные проверки.');
+      if (file.size > 64 * 1024) throw new Error('Выберите JSON размером до 64 КБ.');
+      const parsed = parseVideoAdPlan(await file.text());
+      if (id !== request.current) return;
+      setPlan(parsed); setState('ready'); setMessage('Проверьте содержание перед добавлением.');
     } catch (caught) {
-      setState('error'); setMessage(caught instanceof Error ? caught.message : 'Video ad plan validation failed.');
+      if (id !== request.current) return;
+      setState('error'); setMessage(caught instanceof Error ? caught.message : 'Не удалось прочитать план. Выберите файл ещё раз.');
     }
-  };
-
-  const approve = () => {
-    if (!plan) return;
+  }
+  function add() {
+    if (!plan || disabled || problem) return;
     try {
-      approveVideoAdPreview(plan, checks); setState('approved');
-      setMessage('Preview одобрен для подготовки локального render. Публикация остаётся заблокированной до отдельного approval после просмотра MP4.');
+      approveVideoAdPreview(plan, checks);
+      onUse(plan);
+      setState('added'); setMessage('Добавлены 3 сцены. Ниже можно настроить звук и камеру. Статус сохранения — вверху сценария.');
     } catch (caught) {
-      setState('error'); setMessage(caught instanceof Error ? caught.message : 'Manual approval failed.');
+      setState('error'); setMessage(caught instanceof Error ? caught.message : 'Не удалось добавить сцены. Повторите попытку.');
     }
-  };
-
-  return (
-    <section className="storyboard-import" aria-labelledby="video-ad-import-title">
-      <div className="storyboard-import__intro">
-        <p className="studio-eyebrow">SHOTFORGE VIDEO AD CONTRACT</p>
-        <h2 id="video-ad-import-title">Проверьте рекламный план до render</h2>
-        <p>Импорт выполняется локально. Файл не запускает CLI, provider API, render или публикацию.</p>
-        <label className="storyboard-import__file"><span>{plan ? 'Выбрать другой JSON' : 'Выбрать Video Ad Plan JSON'}</span><input type="file" accept="application/json,.json" onChange={(event) => void importFile(event.target.files?.[0])} /></label>
-        {state === 'loading' && <p className="storyboard-import__status" role="status">{message}</p>}
-        {state === 'error' && <p className="storyboard-import__error" role="alert">{message}</p>}
-        {(state === 'empty' || state === 'ready' || state === 'approved') && <p className="storyboard-import__status" aria-live="polite">{message}</p>}
+  }
+  return <section className="ad-plan-import" aria-label="План Shotforge">
+    <p className="planning-muted">Три сцены на 15 секунд добавятся в конец текущего проекта. JSON содержит текст и номера референсов, без изображений, звука и видео.</p>
+    <div className="ad-plan-file"><p>План Shotforge · JSON до 64 КБ</p>
+      <div className="ad-plan-picker"><button type="button" disabled={disabled} onClick={() => input.current?.click()}>{fileName ? 'Выбрать другой JSON' : 'Выбрать JSON'}</button><span>{fileName || 'Файл не выбран'}</span></div>
+      <input ref={input} hidden type="file" aria-label="План Shotforge · JSON до 64 КБ" accept="application/json,.json" disabled={disabled} onChange={event => {
+        const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void importFile(file);
+      }} />
+    </div>
+    {message && <p className={state === 'error' ? 'planning-error' : 'planning-muted'} role={state === 'error' ? 'alert' : 'status'}>{message}</p>}
+    {plan && <>
+      <div className="ad-plan-heading"><h2>{plan.plan.title}</h2><span>{plan.plan.format} · 15 секунд</span></div>
+      <ol className="ad-plan-scenes">{plan.plan.scenes.map(scene => <li key={scene.id}>
+        <span className="ad-plan-time">{scene.start}–{scene.start + scene.duration} сек</span>
+        <div><h3>{VIDEO_AD_SCENE_LABELS[scene.purpose]}</h3><p>{scene.copy}</p>
+          <details><summary>Референсы: {scene.referenceIds.length}</summary>
+            <p>Доска: {plan.plan.referenceBoardId}</p>
+            <p>{scene.referenceIds.length ? scene.referenceIds.join(', ') : 'Референсы не указаны.'}</p>
+          </details>
+        </div>
+      </li>)}</ol>
+      <div className="ad-plan-checks">
+        <label><input type="checkbox" checked={checks.referencesMatched} disabled={disabled} onChange={event => setChecks(value => ({ ...value, referencesMatched: event.target.checked }))} /><span>Я сверил список референсов с исходными материалами</span></label>
+        <label><input type="checkbox" checked={checks.claimsReviewed} disabled={disabled} onChange={event => setChecks(value => ({ ...value, claimsReviewed: event.target.checked }))} /><span>Проверил утверждения в тексте</span></label>
+        <label><input type="checkbox" checked={checks.noSensitiveData} disabled={disabled} onChange={event => setChecks(value => ({ ...value, noSensitiveData: event.target.checked }))} /><span>В плане нет секретов и персональных данных</span></label>
       </div>
-      <div className="storyboard-import__preview" aria-live="polite">
-        {!plan ? <div className="storyboard-import__empty"><strong>Ожидается eclipse.video-ad-plan.v1</strong><span>3 сцены · 15 секунд · manual approval</span></div> : <>
-          <div className="storyboard-import__heading"><div><span>{state === 'approved' ? 'APPROVED FOR RENDER PREP' : 'VALIDATED'}</span><h3>{plan.plan.title}</h3></div><b>{plan.plan.format} · {plan.plan.duration} sec</b></div>
-          <ol>{plan.plan.scenes.map((scene) => <li key={scene.id}><time>{scene.start}–{scene.start + scene.duration}s</time><div><span>{scene.purpose}</span><strong>{scene.copy}</strong><p>{scene.referenceIds.length} reference link(s)</p></div></li>)}</ol>
-          <div className="mt-4 grid gap-2 text-sm">
-            <label><input type="checkbox" checked={checks.referencesMatched} disabled={state === 'approved'} onChange={(event) => setChecks((value) => ({ ...value, referencesMatched: event.target.checked }))} /> Локальные изображения соответствуют reference IDs</label>
-            <label><input type="checkbox" checked={checks.claimsReviewed} disabled={state === 'approved'} onChange={(event) => setChecks((value) => ({ ...value, claimsReviewed: event.target.checked }))} /> Все claims проверены человеком</label>
-            <label><input type="checkbox" checked={checks.noSensitiveData} disabled={state === 'approved'} onChange={(event) => setChecks((value) => ({ ...value, noSensitiveData: event.target.checked }))} /> В кадрах нет секретов и персональных данных</label>
-          </div>
-          <button type="button" disabled={!allChecked || state === 'approved'} onClick={approve} className="btn-primary mt-4 disabled:cursor-not-allowed disabled:opacity-40">Одобрить подготовку render</button>
-          <p className="storyboard-import__approval">Render approval не является publish approval. После сборки MP4 его нужно посмотреть и подтвердить публикацию отдельно.</p>
-        </>}
-      </div>
-    </section>
-  );
+      {problem && <p className="planning-muted" role="status">{problem}</p>}
+      <button type="button" className="planning-primary" disabled={disabled || !allChecked || !!problem || state === 'loading'} onClick={add}>Добавить 3 сцены в сценарий</button>
+      <p className="planning-muted">Файлы остаются на устройстве. Генерация, монтаж и публикация не запускаются. После правок и сборки видео потребуется отдельная проверка.</p>
+    </>}
+  </section>;
 }
