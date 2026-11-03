@@ -20,9 +20,12 @@ test("nginx writes every runtime temp file into the writable tmpfs", async () =>
   assert.ok(!config.includes("_temp_path /var/cache/nginx"));
 });
 
-test("allows only the same-origin release preview to be embedded", async () => {
+test("allows only same-origin release preview routes to be embedded", async () => {
   const config = await readFile(new URL("../nginx.conf", import.meta.url), "utf8");
-  assert.match(config, /location = \/studio\/eclipse-release\/preview\.html/);
-  assert.match(config, /location = \/studio\/eclipse-release\/preview\.html[\s\S]*frame-ancestors 'self'/);
-  assert.doesNotMatch(config, /location = \/studio\/eclipse-release\/preview\.html[\s\S]*frame-ancestors 'none'/);
+  for (const route of ["preview.html", "index.html"]) {
+    const escapedRoute = route.replace(".", "\\.");
+    assert.match(config, new RegExp(`location = /studio/eclipse-release/${escapedRoute}`));
+    assert.match(config, new RegExp(`location = /studio/eclipse-release/${escapedRoute}[\\s\\S]*frame-ancestors 'self'`));
+    assert.doesNotMatch(config, new RegExp(`location = /studio/eclipse-release/${escapedRoute}[\\s\\S]*frame-ancestors 'none'`));
+  }
 });
