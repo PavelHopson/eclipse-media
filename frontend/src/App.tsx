@@ -22,6 +22,18 @@ import { fetchInfo } from './api/media';
 
 const WORKSPACES = ['downloads', 'library', 'intake', 'beats', 'storyboard', 'webbook', 'presentation', 'datasets', 'studio', 'edit'] as const;
 type Workspace = typeof WORKSPACES[number];
+const WORKSPACE_ITEMS: Array<[Workspace, string]> = [
+  ['downloads', 'Загрузки'],
+  ['library', 'Медиатека'],
+  ['intake', 'План'],
+  ['beats', 'Бит-карта'],
+  ['storyboard', 'Сценарий'],
+  ['webbook', 'Веб-книга'],
+  ['presentation', 'Презентация'],
+  ['datasets', 'Датасеты'],
+  ['studio', 'Видео-студия'],
+  ['edit', 'Безопасный монтаж'],
+];
 
 function readWorkspace(): Workspace {
   const requested = new URLSearchParams(window.location.search).get('workspace');
@@ -34,6 +46,7 @@ export default function App() {
   const projects = useProjects(workspace === 'intake' || workspace === 'beats' || workspace === 'storyboard');
   const [editScene, setEditScene] = useState<StoryScene | undefined>();
   const [editProjectId, setEditProjectId] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const projectLocked = projects.busy || !!projects.projects.find((p) => p.id === projects.activeId)?.deletedAt;
   const projectGeneration = projects.activeId;
   const store = useDownloads();
@@ -84,6 +97,7 @@ export default function App() {
 
   function selectWorkspace(nextWorkspace: Workspace) {
     setWorkspace(nextWorkspace);
+    setMobileMenuOpen(false);
     const url = new URL(window.location.href);
     if (nextWorkspace === 'downloads') url.searchParams.delete('workspace');
     else url.searchParams.set('workspace', nextWorkspace);
@@ -134,19 +148,20 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="workspace-switch" aria-label="Раздел Eclipse Media">
-          {([
-            ['downloads', 'Загрузки'],
-            ['library', 'Медиатека'],
-            ['intake', 'План'],
-            ['beats', 'Бит-карта'],
-            ['storyboard', 'Сценарий'],
-            ['webbook', 'Веб-книга'],
-            ['presentation', 'Презентация'],
-            ['datasets', 'Датасеты'],
-            ['studio', 'Видео-студия'],
-            ['edit', 'Безопасный монтаж'],
-          ] as Array<[Workspace, string]>).map(([value, label]) => (
+        <button
+          type="button"
+          className="workspace-menu-toggle"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="eclipse-media-workspaces"
+          onClick={() => setMobileMenuOpen((open) => !open)}
+        >
+          <span className="workspace-menu-toggle__icon" aria-hidden="true"><span /><span /><span /></span>
+          <span>Разделы</span>
+          <span className="workspace-menu-toggle__chevron" aria-hidden="true">{mobileMenuOpen ? '↑' : '↓'}</span>
+        </button>
+
+        <nav id="eclipse-media-workspaces" className={mobileMenuOpen ? 'workspace-switch is-open' : 'workspace-switch'} aria-label="Раздел Eclipse Media">
+          {WORKSPACE_ITEMS.map(([value, label]) => (
             <button
               key={value}
               type="button"
