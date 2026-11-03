@@ -7,10 +7,10 @@ test('six local hooks; review required; scene is three seconds', () => {
   assert.throws(() => hookToScene(hooks[0], false)); assert.equal(hookToScene(hooks[0], true).duration, 3);
 });
 test('prepend and undo preserve previous scenes; edited hook cannot be removed', () => {
-  const scene = hookToScene(createVideoHooks(brief)[0], true), previous = { ...scene, id: crypto.randomUUID(), title: 'Исходная сцена' };
+  const scene = hookToScene(createVideoHooks(brief)[0], true), previous = { ...scene, id: globalThis.crypto.randomUUID(), title: 'Исходная сцена' };
   const next = prependHook([previous], scene); assert.deepEqual(next, [scene, previous]); assert.deepEqual(undoHook(next, scene), [previous]);
   const edited = [{ ...scene, title: 'Моя правка' }, previous]; assert.equal(canUndoHook(edited, scene), false); assert.throws(() => undoHook(edited, scene));
-  assert.throws(() => prependHook(Array.from({length:24}, () => ({...previous,id:crypto.randomUUID()})), scene));
+  assert.throws(() => prependHook(Array.from({length:24}, () => ({...previous,id:globalThis.crypto.randomUUID()})), scene));
 });
 test('invalid text and injected secrets are rejected, markup stays text', () => {
   for (const product of ['', 'x'.repeat(81), 'abc\u202e', 'sk-' + 'x'.repeat(24)]) assert.throws(() => createVideoHooks({ ...brief, product }));
