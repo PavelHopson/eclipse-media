@@ -55,6 +55,8 @@ jobs:
           trap cleanup EXIT
           docker compose -p eclipse-media -f docker-compose.production.yml up -d --no-build --wait --wait-timeout 90
           curl --fail --silent --show-error "http://127.0.0.1:$ECLIPSE_MEDIA_PORT/api/health" >/dev/null
+          docker compose -p eclipse-media -f docker-compose.production.yml exec -T backend node -e "if (Number(process.versions.node.split('.')[0]) < 22) process.exit(1)"
+          docker compose -p eclipse-media -f docker-compose.production.yml exec -T backend python -c "from importlib.metadata import version; from importlib.resources import files; from subprocess import run; assert version('yt-dlp-ejs') == '0.8.0'; p = files('yt_dlp_ejs').joinpath('yt/solver/core.min.js'); assert p.is_file(); run(['node', '--check', str(p)], check=True)"
 
       - name: Configure SSH trust
         env:

@@ -129,9 +129,12 @@ class MediaUrlValidationTests(unittest.TestCase):
 
     def test_youtube_runtime_is_pinned_with_local_ejs(self):
         requirements = Path(__file__).with_name("requirements.txt").read_text(encoding="utf-8")
+        command = _ytdlp_base()
 
         self.assertIn("yt-dlp[default]==2026.8.19", requirements)
         self.assertIn("yt-dlp-ejs==0.8.0", requirements)
+        self.assertIn("--js-runtimes", command)
+        self.assertEqual(command[command.index("--js-runtimes") + 1], "node")
 
     @patch.object(sys, "frozen", True, create=True)
     def test_packaged_sidecar_routes_ytdlp_through_its_explicit_entry_point(self):
