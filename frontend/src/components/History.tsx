@@ -9,6 +9,7 @@ function timeAgo(ts: number): string {
 }
 
 function EntryRow({ entry }: { entry: HistoryEntry }) {
+  const formatLabel = entry.format === 'audio' ? (entry.audioFormat?.toUpperCase() ?? 'АУДИО') : 'MP4';
   return (
     <div className="flex items-center gap-3 py-2.5 group">
       <div
@@ -24,7 +25,7 @@ function EntryRow({ entry }: { entry: HistoryEntry }) {
         <p className="mono" style={{ color: 'var(--text-dim)' }}>{timeAgo(entry.downloadedAt)}</p>
       </div>
       <span className="tag" style={{ fontSize: '10px', padding: '2px 6px' }}>
-        {entry.format === 'audio' ? 'MP3' : 'MP4'}
+        {formatLabel}
       </span>
     </div>
   );
@@ -40,7 +41,7 @@ export function History() {
         <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>
           История
         </h3>
-        <button onClick={clearHistory} className="text-xs transition-colors" style={{ color: 'var(--text-dim)' }}
+        <button type="button" onClick={clearHistory} aria-label="Очистить историю скачиваний" className="history-clear text-xs transition-colors" style={{ color: 'var(--text-dim)' }}
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dim)')}>
           Очистить
         </button>

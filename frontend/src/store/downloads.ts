@@ -62,6 +62,7 @@ export interface HistoryEntry {
   url: string;
   filename: string;
   format: 'video' | 'audio';
+  audioFormat?: AudioFormat;
   downloadedAt: number;
 }
 
@@ -148,7 +149,7 @@ export const useDownloads = create<DownloadsState>()(
       })),
       setStatus: (id, status, error) => set((state) => ({
         items: state.items.map((item) => item.id === id
-          ? { ...item, status, error: error ?? item.error, ...(status === 'downloading' ? { phase: 'preparing' as const, progress: 0 } : {}) }
+          ? { ...item, status, error: status === 'fetching' || status === 'downloading' ? null : error ?? item.error, ...(status === 'downloading' ? { phase: 'preparing' as const, progress: 0 } : {}) }
           : item),
       })),
       setFormat: (id, format) => set((state) => ({
@@ -207,6 +208,7 @@ export const useDownloads = create<DownloadsState>()(
           url: item.url,
           filename,
           format: item.format,
+          audioFormat: item.format === 'audio' ? item.audioFormat : undefined,
           downloadedAt: Date.now(),
         }, ...state.history].slice(0, 50),
       })),

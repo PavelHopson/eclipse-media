@@ -65,7 +65,7 @@ export function UrlInput({ onSubmit, loading }: Props) {
           {error || (lines.length > 1 ? `${lines.length} ссылок добавлено` : 'Команд не нужно · Enter — проверить · Shift+Enter — новая строка')}
         </span>
         <button type="button" onClick={handleSubmit} disabled={!value.trim() || loading} className="btn-primary btn-eclipse">
-          {loading ? (<><span className="button-spinner" aria-hidden="true" /> Проверяем...</>) : 'Проверить ссылку'}
+          {loading ? (<><span className="button-spinner" aria-hidden="true" /> Проверяем...</>) : lines.length > 1 ? 'Проверить ссылки' : 'Проверить ссылку'}
         </button>
       </div>
     </div>

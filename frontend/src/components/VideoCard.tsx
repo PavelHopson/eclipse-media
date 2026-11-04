@@ -30,12 +30,15 @@ export function VideoCard({ item }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedName, setSavedName] = useState<string | null>(null);
   const [browserDownloadRequested, setBrowserDownloadRequested] = useState(false);
+  const [errorAction, setErrorAction] = useState<'fetch' | 'download'>('fetch');
 
   async function handleFetch() {
+    setErrorAction('fetch');
     store.setStatus(item.id, 'fetching');
     try {
       const info = await fetchInfo(item.url, store.proxy || undefined);
       store.setInfo(item.id, info);
+      setErrorAction('fetch');
       if (info.formats.length > 0) store.setFormatId(item.id, info.formats[0].id);
     } catch (e: unknown) {
       store.setStatus(item.id, 'error', e instanceof Error ? e.message : 'Ошибка');
@@ -44,6 +47,7 @@ export function VideoCard({ item }: Props) {
 
   async function handleDownload() {
     if (!item.info || !item.rightsConfirmed) return;
+    setErrorAction('download');
     store.setStatus(item.id, 'downloading');
     if (item.requestId) store.setRequestStatus(item.requestId, 'in_progress');
     try {
@@ -73,7 +77,7 @@ export function VideoCard({ item }: Props) {
           event.fragment_total,
         );
         else if (event.type === 'done') { store.setDone(item.id, event.filename); store.addToHistory(item, event.filename); unsub(); }
-        else if (event.type === 'error') { store.setStatus(item.id, 'error', event.message); if (item.requestId) store.setRequestStatus(item.requestId, 'planned'); unsub(); }
+        else if (event.type === 'error') { setErrorAction('download'); store.setStatus(item.id, 'error', event.message); if (item.requestId) store.setRequestStatus(item.requestId, 'planned'); unsub(); }
       });
     } catch (e: unknown) {
       store.setStatus(item.id, 'error', e instanceof Error ? e.message : 'Ошибка');
@@ -130,7 +134,7 @@ export function VideoCard({ item }: Props) {
       aria-busy={item.status === 'fetching' || item.status === 'downloading' || saving}
     >
       {/* Header — thumbnail + title */}
-      <div className="flex gap-3.5 p-4">
+      <div className="download-card__header flex gap-3.5 p-4">
         {item.info?.thumbnail ? (
           <img src={item.info.thumbnail} alt="" className="w-24 h-14 object-cover rounded-xl flex-shrink-0" style={{ background: 'var(--surface2)' }} />
         ) : (
@@ -155,11 +159,11 @@ export function VideoCard({ item }: Props) {
           )}
           {item.status === 'error' && (
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <p className="text-xs flex items-center gap-1" style={{ color: 'var(--error)' }}>
+              <p className="text-xs flex items-center gap-1" role="alert" aria-live="assertive" style={{ color: 'var(--error)' }}>
                 <span>✕</span> {item.error}
               </p>
-              <button onClick={handleFetch} className="btn-ghost" style={{ padding: '4px 8px', fontSize: '10px' }}>
-                ↻ Повторить проверку
+              <button onClick={errorAction === 'download' ? handleDownload : handleFetch} className="btn-ghost" style={{ padding: '4px 8px', fontSize: '10px' }}>
+                ↻ {errorAction === 'download' ? 'Повторить загрузку' : 'Повторить проверку'}
               </button>
             </div>
           )}
@@ -180,7 +184,7 @@ export function VideoCard({ item }: Props) {
 
       {/* Controls */}
       {item.info && item.status !== 'error' && item.status !== 'done' && (
-        <div className="px-4 pb-4 flex flex-wrap items-center gap-2.5">
+        <div className="download-card__controls px-4 pb-4 flex flex-wrap items-center gap-2.5">
           <label className="rights-confirmation">
             <input
               type="checkbox"
@@ -259,7 +263,7 @@ export function VideoCard({ item }: Props) {
           </details>
 
           {/* Action buttons */}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="download-card__actions ml-auto flex items-center gap-2">
             {item.info && (
               <button onClick={() => setShowTranscript(true)} disabled={!item.rightsConfirmed} className="btn-ghost" style={{ fontSize: '11px' }}>
                 📄 Транскрипт

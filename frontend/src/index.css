@@ -1133,6 +1133,8 @@ body::after {
 .trust-list > div { padding: 14px 0; }
 
 .workspace-menu-toggle__label { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-clear { min-height: 40px; padding: 8px 10px; border-radius: 8px; }
+.history-clear:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
 
 @media (max-width: 900px) {
   .download-shell { width: min(780px, calc(100% - 32px)); }
@@ -1148,4 +1150,27 @@ body::after {
   .download-start-card__heading { align-items: flex-start; margin-bottom: 15px; }
   .url-field__input { min-height: 58px; padding-inline: 15px; }
   .download-path li { min-height: 88px; padding: 13px 12px; }
+}
+
+@media (max-width: 640px) {
+  .download-card__header { gap: 11px; padding: 14px; }
+  .download-card__header > img,
+  .download-card__header > div:first-child {
+    width: 72px;
+    height: 52px;
+    border-radius: 10px;
+  }
+  .download-card__header > div:nth-child(2) { min-width: 0; }
+  .download-card__controls { align-items: stretch; padding: 0 14px 14px; }
+  .download-card__controls > .pill-group,
+  .download-card__controls > select,
+  .download-card__controls > .download-options,
+  .download-card__actions {
+    width: 100%;
+  }
+  .download-card__controls > .pill-group { justify-content: stretch; }
+  .download-card__controls > .pill-group .pill { flex: 1 1 0; min-height: 40px; }
+  .download-card__actions { display: grid; grid-template-columns: 1fr; margin-left: 0; }
+  .download-card__actions > button { width: 100%; min-height: 44px; justify-content: center; }
+  .download-card__controls .download-options__grid { grid-template-columns: 1fr; }
 }
