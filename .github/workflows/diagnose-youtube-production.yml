@@ -1,0 +1,124 @@
+name: Diagnose production YouTube metadata
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: eclipse-media-production
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: github.ref == 'refs/heads/master'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check server connectivity and metadata extraction
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          export LC_ALL=C
+          case "$DEPLOY_HOST" in ''|*[!A-Za-z0-9._-]*) echo 'Invalid host'; exit 1 ;; esac
+          case "$DEPLOY_USER" in ''|*[!A-Za-z0-9._-]*) echo 'Invalid user'; exit 1 ;; esac
+          test -n "$DEPLOY_KEY" && test -n "$KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          timeout 110s ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "$DEPLOY_USER@$DEPLOY_HOST" bash -s 2>/dev/null <<'REMOTE'
+          set -Eeuo pipefail
+          export LC_ALL=C
+          mapfile -t ids < <(docker ps -q --filter label=com.docker.compose.project=eclipse-media --filter label=com.docker.compose.service=backend)
+          [[ "${#ids[@]}" -eq 1 && "${ids[0]}" =~ ^[a-f0-9]{12,64}$ ]] || { echo 'BACKEND=not_unique'; exit 1; }
+          docker exec --user 10001:10001 -i "${ids[0]}" timeout --kill-after=5s 80s python - <<'PY'
+          import importlib.metadata
+          import os
+          import signal
+          import socket
+          import ssl
+          import subprocess
+          import sys
+
+          video_id = 'jNQXAC9IVRw'
+          print('YTDLP=' + importlib.metadata.version('yt-dlp'), flush=True)
+          try:
+              result = subprocess.run(['node', '--version'], capture_output=True, text=True, timeout=5)
+              print('NODE=' + ('ok' if result.returncode == 0 else 'error'), flush=True)
+          except (OSError, subprocess.TimeoutExpired):
+              print('NODE=unavailable', flush=True)
+
+          def dns_timeout(_signum, _frame):
+              raise TimeoutError('dns')
+
+          try:
+              signal.signal(signal.SIGALRM, dns_timeout)
+              signal.alarm(8)
+              records = socket.getaddrinfo('www.youtube.com', 443, type=socket.SOCK_STREAM)
+              signal.alarm(0)
+              addresses = {}
+              for family, kind, proto, _, address in records:
+                  if family in (socket.AF_INET, socket.AF_INET6):
+                      addresses.setdefault(family, (kind, proto, address))
+              print('DNS=' + ('ok' if addresses else 'empty'), flush=True)
+              for family, label in ((socket.AF_INET, 'IPV4_TLS'), (socket.AF_INET6, 'IPV6_TLS')):
+                  if family not in addresses:
+                      print(label + '=no_address', flush=True)
+                      continue
+                  kind, proto, address = addresses[family]
+                  try:
+                      with socket.socket(family, kind, proto) as connection:
+                          connection.settimeout(5)
+                          connection.connect(address)
+                          with ssl.create_default_context().wrap_socket(connection, server_hostname='www.youtube.com'):
+                              print(label + '=ok', flush=True)
+                  except (OSError, ssl.SSLError):
+                      print(label + '=failed', flush=True)
+          except OSError:
+              signal.alarm(0)
+              print('DNS=failed', flush=True)
+
+          command = [sys.executable, '-m', 'yt_dlp', '--ignore-config', '--no-playlist',
+                     '--skip-download', '--no-warnings', '--no-cache-dir', '--js-runtimes', 'node',
+                     '--proxy', '',
+                     '--socket-timeout', '8', '--retries', '0', '--extractor-retries', '0',
+                     '--print', '%(id)s', 'https://www.youtube.com/watch?v=' + video_id]
+          try:
+              process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True, start_new_session=True)
+          except OSError:
+              print('METADATA=runtime_error', flush=True)
+          else:
+              try:
+                  stdout, stderr = process.communicate(timeout=35)
+                  error = stderr.lower()
+                  if process.returncode == 0 and stdout.strip() == video_id:
+                      category = 'ok'
+                  elif any(value in error for value in ('sign in', 'log in', 'bot', 'cookies')):
+                      category = 'authentication_or_bot_check'
+                  elif 'http error 403' in error or 'forbidden' in error:
+                      category = 'http_403'
+                  elif 'http error 429' in error:
+                      category = 'http_429'
+                  elif any(value in error for value in ('timed out', 'network is unreachable', 'unable to download api page')):
+                      category = 'network_or_timeout'
+                  else:
+                      category = 'extractor_error'
+                  print('METADATA=' + category, flush=True)
+              except subprocess.TimeoutExpired:
+                  print('METADATA=timeout', flush=True)
+              finally:
+                  try:
+                      os.killpg(process.pid, signal.SIGKILL)
+                  except ProcessLookupError:
+                      pass
+                  process.wait(timeout=5)
+          PY
+          REMOTE
