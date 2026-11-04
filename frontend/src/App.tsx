@@ -123,6 +123,7 @@ export default function App() {
         : workspace === 'edit'
           ? 'Только предпросмотр'
           : 'Local preview';
+  const activeWorkspaceLabel = WORKSPACE_ITEMS.find(([value]) => value === workspace)?.[1] ?? 'Разделы';
 
   return (
     <div className="min-h-screen eclipse-grid forge-product-shell" data-visual-profile="bento-spatial">
@@ -156,7 +157,7 @@ export default function App() {
           onClick={() => setMobileMenuOpen((open) => !open)}
         >
           <span className="workspace-menu-toggle__icon" aria-hidden="true"><span /><span /><span /></span>
-          <span>Разделы</span>
+          <span className="workspace-menu-toggle__label">{activeWorkspaceLabel}</span>
           <span className="workspace-menu-toggle__chevron" aria-hidden="true">{mobileMenuOpen ? '↑' : '↓'}</span>
         </button>
 

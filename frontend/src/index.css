@@ -1065,3 +1065,86 @@ body::after {
   .progress-fill.eclipse-progress::after,
   .local-status > span::after { display: none; }
 }
+
+/* Product direction: a quiet local media control surface, not a generic SaaS hero. */
+.forge-product-shell[data-visual-profile="bento-spatial"] {
+  background:
+    linear-gradient(180deg, #05070a 0%, #070b11 52%, #05070a 100%);
+}
+
+.download-shell {
+  width: min(1220px, calc(100% - 48px));
+  padding-top: clamp(42px, 5vw, 68px);
+}
+
+.download-hero {
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, .92fr);
+  gap: clamp(32px, 5vw, 58px);
+  min-height: 238px;
+  padding-bottom: 34px;
+}
+
+.download-hero h1 {
+  max-width: 680px;
+  font-size: clamp(38px, 4.6vw, 62px);
+  font-weight: 650;
+  letter-spacing: -.055em;
+}
+
+.download-hero > div > p { max-width: 570px; font-size: 13.5px; }
+
+.download-path {
+  border-radius: 16px;
+  background: rgba(12, 17, 23, .56);
+  box-shadow: 0 22px 52px -46px rgba(107, 163, 255, .6);
+}
+
+.download-path li {
+  min-height: 104px;
+  padding: 18px;
+  align-content: center;
+}
+
+.download-path span { color: var(--accent-light); font-size: 10px; }
+.download-path strong { color: var(--text); font-size: 12px; }
+.download-path small { color: var(--text-dim); }
+
+.download-start-card {
+  padding: 26px;
+  border-radius: 18px;
+  background: rgba(12, 17, 23, .94);
+  box-shadow: 0 28px 72px -58px rgba(0, 0, 0, .96), inset 0 1px 0 rgba(255, 255, 255, .028);
+}
+
+.download-start-card__heading { align-items: flex-end; margin-bottom: 20px; }
+.download-start-card h2 { font-size: 21px; letter-spacing: -.025em; }
+.url-field { border-radius: 14px; background: #070b10; }
+.url-field__input { min-height: 64px; padding-inline: 18px; font-size: 12.5px; }
+.url-field__footer { padding: 8px 9px 9px 18px; }
+
+.download-trust-panel {
+  border-radius: 18px;
+  background: rgba(9, 13, 18, .82);
+  box-shadow: 0 26px 62px -50px rgba(0, 0, 0, .96), inset 0 1px 0 rgba(255, 255, 255, .025);
+}
+
+.local-status { padding: 19px; background: rgba(74, 230, 160, .025); }
+.trust-list { padding-inline: 19px; }
+.trust-list > div { padding: 14px 0; }
+
+.workspace-menu-toggle__label { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .download-shell { width: min(780px, calc(100% - 32px)); }
+  .download-hero { min-height: 0; }
+}
+
+@media (max-width: 640px) {
+  .download-shell { width: calc(100% - 24px); padding-top: 30px; }
+  .download-hero { gap: 22px; padding-bottom: 26px; }
+  .download-hero h1 { font-size: clamp(34px, 10vw, 45px); line-height: 1.01; }
+  .download-start-card { padding: 18px; }
+  .download-start-card__heading { align-items: flex-start; margin-bottom: 15px; }
+  .url-field__input { min-height: 58px; padding-inline: 15px; }
+  .download-path li { min-height: 88px; padding: 13px 12px; }
+}

@@ -8,6 +8,8 @@ test("studio navigation and safe edit keep a usable layout through tablet and ph
   const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 
   assert.match(app, /workspace-menu-toggle/);
+  assert.match(app, /workspace-menu-toggle__label/);
+  assert.match(app, /activeWorkspaceLabel/);
   assert.match(app, /aria-expanded=\{mobileMenuOpen\}/);
   assert.match(app, /setMobileMenuOpen\(false\)/);
   assert.match(css, /@media \(max-width: 1100px\)\s*\{[\s\S]*?\.app-header > \.workspace-menu-toggle\s*\{\s*display: inline-flex/);
