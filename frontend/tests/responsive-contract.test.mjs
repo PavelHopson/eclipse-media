@@ -10,7 +10,7 @@ test("studio navigation and safe edit keep a usable layout through tablet and ph
   assert.match(app, /workspace-menu-toggle/);
   assert.match(app, /aria-expanded=\{mobileMenuOpen\}/);
   assert.match(app, /setMobileMenuOpen\(false\)/);
-  assert.match(css, /@media \(max-width: 840px\)\s*\{[\s\S]*?\.app-header > \.workspace-menu-toggle\s*\{\s*display: inline-flex/);
+  assert.match(css, /@media \(max-width: 1100px\)\s*\{[\s\S]*?\.app-header > \.workspace-menu-toggle\s*\{\s*display: inline-flex/);
   assert.match(css, /\.app-header > \.workspace-switch\.is-open\s*\{\s*display: flex/);
   assert.match(css, /@media \(max-width: 840px\)\s*\{[\s\S]*?\.safe-edit__steps\s*\{\s*grid-template-columns: repeat\(2/);
   assert.match(css, /@media \(max-width: 420px\)\s*\{[\s\S]*?\.safe-edit__steps\s*\{\s*grid-template-columns: 1fr/);

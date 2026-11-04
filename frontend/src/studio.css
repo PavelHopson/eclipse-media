@@ -523,7 +523,7 @@
   .safe-edit__confirm { min-height: 48px; }
   .safe-edit__workspace, .safe-edit__approval { padding: 14px; }
 }
-@media (max-width: 840px) {
+@media (max-width: 1100px) {
   .app-header > .workspace-menu-toggle { display: inline-flex; }
   .app-header > .workspace-switch {
     display: none;
