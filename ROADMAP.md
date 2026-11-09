@@ -1,5 +1,12 @@
 # Eclipse Media Roadmap
 
+### 2026-11-09 — Eclipse Media showcase
+
+- [x] Подготовлена шестисценная раскадровка `docs/eclipse-media-showcase-storyboard.md`: источник, права, очередь, план сцен, review и результат.
+- [ ] Собрать локальный master 16:9 и производные 9:16/1:1 из собственных UI-материалов.
+- [ ] Проверить playback, декодирование, субтитры, safe zones и reduced-motion preview.
+- [ ] Провести ручной review и только потом решать вопрос о публикации ролика.
+
 ### 2026-11-09 — ReelMimic pilot preflight
 
 - [x] Выбран собственный исходник `Eclipse-Forge-All-Effects-36s.mp4`: H.264, 1920×1080, 36 секунд.
