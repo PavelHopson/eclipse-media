@@ -1,5 +1,14 @@
 # Eclipse Media Roadmap
 
+### 2026-11-09 — ReelMimic pilot preflight
+
+- [x] Выбран собственный исходник `Eclipse-Forge-All-Effects-36s.mp4`: H.264, 1920×1080, 36 секунд.
+- [x] Проверен baseline-файл через `ffprobe`; чужие материалы и production-данные не использовались.
+- [ ] Запустить ReelMimic в disposable-копии и собрать одну 2D-сцену.
+- [ ] Закрыть preflight: Node.js 22.18+, Python 3.10+, FFmpeg, Chrome и Codex/Claude runtime.
+- [ ] Сравнить время, token usage, число правок и качество review; до этого интеграция в Media запрещена.
+- [!] Текущий блокер: на рабочем Windows-хосте Python недоступен, Chrome не найден в PATH, а GitHub clone временно заблокирован DNS; установка и production-включение не выполнялись.
+
 Последнее обновление: **03.11.2026**
 
 ### 2026-11-03 — локальная связка Text2Image → Media
